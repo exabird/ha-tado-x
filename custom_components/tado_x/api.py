@@ -308,7 +308,7 @@ class TadoXApi:
         termination_type: str = "TIMER",
         duration_seconds: int = 1800,
     ) -> None:
-        """Turn off heating for a room."""
+        """Turn off heating for a room (frost protection mode)."""
         if not self._home_id:
             raise TadoXApiError("Home ID not set")
 
@@ -322,11 +322,15 @@ class TadoXApi:
         if termination_type == "TIMER":
             data["termination"]["durationInSeconds"] = duration_seconds
 
-        await self._request(
+        _LOGGER.debug("Setting room %s to OFF with data: %s", room_id, data)
+
+        result = await self._request(
             "POST",
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/rooms/{room_id}/manualControl",
             json_data=data,
         )
+
+        _LOGGER.debug("Set room OFF response: %s", result)
 
     async def resume_schedule(self, room_id: int) -> None:
         """Resume the schedule for a room (cancel manual control)."""
