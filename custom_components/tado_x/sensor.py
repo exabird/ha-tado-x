@@ -199,7 +199,16 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
                 identifiers={(DOMAIN, self._serial_number)},
             )
 
-        device_type_names = {
+        # French names for device types (used in device name)
+        device_type_names_fr = {
+            "VA04": "Vanne",
+            "SU04": "Capteur Temp",
+            "TR04": "Thermostat",
+            "IB02": "Bridge X",
+        }
+
+        # English model names (used in device model field)
+        device_type_models = {
             "VA04": "Radiator Valve X",
             "SU04": "Temperature Sensor X",
             "TR04": "Thermostat X",
@@ -213,12 +222,32 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
             else (DOMAIN, str(self.coordinator.home_id))
         )
 
-        # Always create separate device entry for each physical device
+        # Generate device name with room name and numbering
+        base_name = device_type_names_fr.get(device.device_type, device.device_type)
+
+        if device.room_id and device.room_name:
+            # Count devices of same type in same room to determine numbering
+            same_type_in_room = sorted([
+                d.serial_number for d in self.coordinator.data.devices.values()
+                if d.room_id == device.room_id and d.device_type == device.device_type
+            ])
+
+            if len(same_type_in_room) > 1:
+                # Multiple devices of same type - add number
+                device_number = same_type_in_room.index(self._serial_number) + 1
+                device_name = f"{base_name} {device_number} - {device.room_name}"
+            else:
+                # Only one device of this type - no number needed
+                device_name = f"{base_name} - {device.room_name}"
+        else:
+            # No room - use serial number suffix (e.g., Bridge)
+            device_name = f"{base_name} ({self._serial_number[-4:]})"
+
         return DeviceInfo(
             identifiers={(DOMAIN, self._serial_number)},
-            name=f"{device_type_names.get(device.device_type, device.device_type)} ({self._serial_number[-4:]})",
+            name=device_name,
             manufacturer="Tado",
-            model=device_type_names.get(device.device_type, device.device_type),
+            model=device_type_models.get(device.device_type, device.device_type),
             sw_version=device.firmware_version,
             via_device=via_device_id,
         )
