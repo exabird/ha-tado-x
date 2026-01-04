@@ -118,7 +118,7 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     continue
 
                 # Debug: log raw room data for power/setting analysis
-                setting = room_data.get("setting", {})
+                setting = room_data.get("setting") or {}
                 _LOGGER.debug(
                     "Room %s (%s) - setting: %s, manualControl: %s",
                     room_id,
@@ -127,14 +127,14 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     room_data.get("manualControlTermination"),
                 )
 
-                # Get sensor data
-                sensor_data = room_data.get("sensorDataPoints", {})
-                inside_temp = sensor_data.get("insideTemperature", {})
-                humidity_data = sensor_data.get("humidity", {})
+                # Get sensor data (use 'or {}' to handle None values)
+                sensor_data = room_data.get("sensorDataPoints") or {}
+                inside_temp = sensor_data.get("insideTemperature") or {}
+                humidity_data = sensor_data.get("humidity") or {}
 
-                # Get setting
-                setting = room_data.get("setting", {})
-                target_temp = setting.get("temperature", {})
+                # Get setting (use 'or {}' to handle None values)
+                setting = room_data.get("setting") or {}
+                target_temp = setting.get("temperature") or {}
 
                 # Get manual control info
                 manual_control = room_data.get("manualControlTermination")
@@ -145,11 +145,16 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     manual_remaining = manual_control.get("remainingTimeInSeconds")
                     manual_type = manual_control.get("type")
 
-                # Get next schedule change
-                next_change = room_data.get("nextScheduleChange", {})
+                # Get next schedule change (use 'or {}' to handle None values)
+                next_change = room_data.get("nextScheduleChange") or {}
                 next_change_time = next_change.get("start")
-                next_change_setting = next_change.get("setting", {})
-                next_change_temp = next_change_setting.get("temperature", {}).get("value")
+                next_change_setting = next_change.get("setting") or {}
+                next_change_temp_obj = next_change_setting.get("temperature") or {}
+                next_change_temp = next_change_temp_obj.get("value")
+
+                # Get heating power and connection (use 'or {}' to handle None values)
+                heating_power_data = room_data.get("heatingPower") or {}
+                connection_data = room_data.get("connection") or {}
 
                 room = TadoXRoom(
                     room_id=room_id,
@@ -157,9 +162,9 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     current_temperature=inside_temp.get("value"),
                     target_temperature=target_temp.get("value"),
                     humidity=humidity_data.get("percentage"),
-                    heating_power=room_data.get("heatingPower", {}).get("percentage", 0),
+                    heating_power=heating_power_data.get("percentage", 0),
                     power=setting.get("power", "OFF"),
-                    connection_state=room_data.get("connection", {}).get("state", "DISCONNECTED"),
+                    connection_state=connection_data.get("state", "DISCONNECTED"),
                     manual_control_active=manual_active,
                     manual_control_remaining_seconds=manual_remaining,
                     manual_control_type=manual_type,
@@ -171,11 +176,12 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
 
                 # Add devices for this room
                 for device_data in room_devices_map.get(room_id, []):
+                    device_connection = device_data.get("connection") or {}
                     device = TadoXDevice(
                         serial_number=device_data.get("serialNumber", ""),
                         device_type=device_data.get("type", ""),
                         firmware_version=device_data.get("firmwareVersion", ""),
-                        connection_state=device_data.get("connection", {}).get("state", "DISCONNECTED"),
+                        connection_state=device_connection.get("state", "DISCONNECTED"),
                         battery_state=device_data.get("batteryState"),
                         temperature_measured=device_data.get("temperatureAsMeasured"),
                         temperature_offset=device_data.get("temperatureOffset", 0.0),
@@ -190,12 +196,13 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 data.rooms[room_id] = room
 
             # Process other devices (bridge, thermostat controller)
-            for device_data in rooms_devices_data.get("otherDevices", []):
+            for device_data in rooms_devices_data.get("otherDevices") or []:
+                other_device_connection = device_data.get("connection") or {}
                 device = TadoXDevice(
                     serial_number=device_data.get("serialNumber", ""),
                     device_type=device_data.get("type", ""),
                     firmware_version=device_data.get("firmwareVersion", ""),
-                    connection_state=device_data.get("connection", {}).get("state", "DISCONNECTED"),
+                    connection_state=other_device_connection.get("state", "DISCONNECTED"),
                 )
                 data.other_devices.append(device)
                 data.devices[device.serial_number] = device
