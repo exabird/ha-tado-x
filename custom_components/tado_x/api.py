@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
+import ssl
 
 from .const import (
     TADO_AUTH_URL,
@@ -74,17 +75,20 @@ class TadoXApi:
 
         Returns a dict with device_code, user_code, verification_uri, etc.
         """
-        _LOGGER.debug("Starting device authorization flow")
+        _LOGGER.warning("Starting device authorization flow")
         timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=20)
 
+        # Create SSL context that's more permissive for debugging
+        ssl_context = ssl.create_default_context()
+
         # Create a dedicated session for auth to ensure timeout is respected
-        connector = aiohttp.TCPConnector(force_close=True)
+        connector = aiohttp.TCPConnector(force_close=True, ssl=ssl_context)
         async with aiohttp.ClientSession(
             timeout=timeout,
             connector=connector,
         ) as auth_session:
             try:
-                _LOGGER.debug("Sending request to %s", TADO_AUTH_URL)
+                _LOGGER.warning("Sending request to %s", TADO_AUTH_URL)
                 async with auth_session.post(
                     TADO_AUTH_URL,
                     data={
@@ -93,20 +97,26 @@ class TadoXApi:
                     },
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                 ) as response:
-                    _LOGGER.debug("Device auth response status: %s", response.status)
+                    _LOGGER.warning("Device auth response status: %s", response.status)
                     if response.status != 200:
                         text = await response.text()
                         _LOGGER.error("Failed to start device auth: %s - %s", response.status, text)
                         raise TadoXAuthError(f"Failed to start device auth: {response.status}")
                     result = await response.json()
-                    _LOGGER.debug("Device auth successful, got user_code: %s", result.get("user_code"))
+                    _LOGGER.warning("Device auth successful, got user_code: %s", result.get("user_code"))
                     return result
             except asyncio.TimeoutError as err:
-                _LOGGER.error("Timeout during device auth request")
+                _LOGGER.error("Timeout during device auth request (30s)")
                 raise TadoXAuthError("Timeout during device auth request") from err
             except aiohttp.ClientError as err:
-                _LOGGER.error("Network error during device auth: %s", err)
+                _LOGGER.error("Network error during device auth: %s (type: %s)", err, type(err).__name__)
                 raise TadoXAuthError(f"Network error: {err}") from err
+            except ssl.SSLError as err:
+                _LOGGER.error("SSL error during device auth: %s", err)
+                raise TadoXAuthError(f"SSL error: {err}") from err
+            except Exception as err:
+                _LOGGER.error("Unexpected error during device auth: %s (type: %s)", err, type(err).__name__)
+                raise TadoXAuthError(f"Unexpected error: {err}") from err
 
     async def poll_for_token(self, device_code: str, interval: int = 5, timeout: int = 300) -> bool:
         """Poll for the access token after user authorizes.
