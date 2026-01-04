@@ -1,0 +1,11 @@
+{
+  "domain": "tado_x",
+  "name": "Tado X",
+  "codeowners": ["@exabird"],
+  "config_flow": true,
+  "documentation": "https://github.com/exabird/ha-tado-x",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/exabird/ha-tado-x/issues",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
+}
