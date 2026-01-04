@@ -136,6 +136,13 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         if not room:
             return HVACMode.OFF
 
+        _LOGGER.debug(
+            "Room %s hvac_mode check - power: %s, manual_control_active: %s",
+            room.name,
+            room.power,
+            room.manual_control_active,
+        )
+
         if room.power == "OFF":
             return HVACMode.OFF
 
