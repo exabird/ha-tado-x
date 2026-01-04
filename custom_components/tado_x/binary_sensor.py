@@ -184,6 +184,13 @@ class TadoXDeviceBinarySensor(CoordinatorEntity[TadoXDataUpdateCoordinator], Bin
                 identifiers={(DOMAIN, self._serial_number)},
             )
 
+        # If device has a room, attach to the room device
+        if device.room_id:
+            return DeviceInfo(
+                identifiers={(DOMAIN, f"{self.coordinator.home_id}_{device.room_id}")},
+            )
+
+        # For devices without a room (like Bridge), create their own device
         device_type_names = {
             "VA04": "Radiator Valve X",
             "SU04": "Temperature Sensor X",
@@ -197,7 +204,7 @@ class TadoXDeviceBinarySensor(CoordinatorEntity[TadoXDataUpdateCoordinator], Bin
             manufacturer="Tado",
             model=device_type_names.get(device.device_type, device.device_type),
             sw_version=device.firmware_version,
-            via_device=(DOMAIN, f"{self.coordinator.home_id}_{device.room_id}") if device.room_id else None,
+            via_device=(DOMAIN, str(self.coordinator.home_id)),
         )
 
     @property
