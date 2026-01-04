@@ -198,12 +198,26 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             # Process other devices (bridge, thermostat controller)
             for device_data in rooms_devices_data.get("otherDevices") or []:
                 other_device_connection = device_data.get("connection") or {}
+                other_room_id = device_data.get("roomId")
+                other_room_name = None
+
+                # If device has a room association, get the room name
+                if other_room_id and other_room_id in data.rooms:
+                    other_room_name = data.rooms[other_room_id].name
+
                 device = TadoXDevice(
                     serial_number=device_data.get("serialNumber", ""),
                     device_type=device_data.get("type", ""),
                     firmware_version=device_data.get("firmwareVersion", ""),
                     connection_state=other_device_connection.get("state", "DISCONNECTED"),
+                    room_id=other_room_id,
+                    room_name=other_room_name,
                 )
+
+                # If device has a room, add it to the room's device list
+                if other_room_id and other_room_id in data.rooms:
+                    data.rooms[other_room_id].devices.append(device)
+
                 data.other_devices.append(device)
                 data.devices[device.serial_number] = device
 
