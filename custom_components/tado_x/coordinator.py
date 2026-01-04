@@ -196,22 +196,40 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 data.rooms[room_id] = room
 
             # Process other devices (bridge, thermostat controller)
-            _LOGGER.warning(
-                "otherDevices raw data: %s",
-                rooms_devices_data.get("otherDevices"),
-            )
+            # First, find the room with the most devices (for thermostat association)
+            room_with_most_devices: int | None = None
+            max_device_count = 0
+            for room_id, room in data.rooms.items():
+                device_count = len(room.devices)
+                if device_count > max_device_count:
+                    max_device_count = device_count
+                    room_with_most_devices = room_id
+
             for device_data in rooms_devices_data.get("otherDevices") or []:
                 other_device_connection = device_data.get("connection") or {}
                 other_room_id = device_data.get("roomId")
                 other_room_name = None
+                device_type = device_data.get("type", "")
 
-                # If device has a room association, get the room name
+                # If device has a room association from API, use it
                 if other_room_id and other_room_id in data.rooms:
                     other_room_name = data.rooms[other_room_id].name
+                # For Thermostat X (TR04) without room, associate with the room
+                # that has the most devices (typically the main room it controls)
+                elif device_type == "TR04" and room_with_most_devices:
+                    other_room_id = room_with_most_devices
+                    other_room_name = data.rooms[room_with_most_devices].name
+                    _LOGGER.debug(
+                        "Associating Thermostat X %s with room %s (%s) - room has %d devices",
+                        device_data.get("serialNumber"),
+                        other_room_id,
+                        other_room_name,
+                        max_device_count,
+                    )
 
                 device = TadoXDevice(
                     serial_number=device_data.get("serialNumber", ""),
-                    device_type=device_data.get("type", ""),
+                    device_type=device_type,
                     firmware_version=device_data.get("firmwareVersion", ""),
                     connection_state=other_device_connection.get("state", "DISCONNECTED"),
                     room_id=other_room_id,
