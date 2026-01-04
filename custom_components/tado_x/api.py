@@ -74,17 +74,32 @@ class TadoXApi:
 
         Returns a dict with device_code, user_code, verification_uri, etc.
         """
-        async with self._session.post(
-            TADO_AUTH_URL,
-            data={
-                "client_id": TADO_CLIENT_ID,
-                "scope": "offline_access",
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        ) as response:
-            if response.status != 200:
-                raise TadoXAuthError(f"Failed to start device auth: {response.status}")
-            return await response.json()
+        _LOGGER.debug("Starting device authorization flow")
+        timeout = aiohttp.ClientTimeout(total=30)
+        try:
+            async with self._session.post(
+                TADO_AUTH_URL,
+                data={
+                    "client_id": TADO_CLIENT_ID,
+                    "scope": "offline_access",
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=timeout,
+            ) as response:
+                _LOGGER.debug("Device auth response status: %s", response.status)
+                if response.status != 200:
+                    text = await response.text()
+                    _LOGGER.error("Failed to start device auth: %s - %s", response.status, text)
+                    raise TadoXAuthError(f"Failed to start device auth: {response.status}")
+                result = await response.json()
+                _LOGGER.debug("Device auth successful, got user_code: %s", result.get("user_code"))
+                return result
+        except asyncio.TimeoutError as err:
+            _LOGGER.error("Timeout during device auth request")
+            raise TadoXAuthError("Timeout during device auth request") from err
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Network error during device auth: %s", err)
+            raise TadoXAuthError(f"Network error: {err}") from err
 
     async def poll_for_token(self, device_code: str, interval: int = 5, timeout: int = 300) -> bool:
         """Poll for the access token after user authorizes.
