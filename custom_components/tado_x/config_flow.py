@@ -85,9 +85,9 @@ class TadoXConfigFlow(ConfigFlow, domain=DOMAIN):
             # User confirmed they authorized the device
             if self._api and self._device_code:
                 try:
-                    # Poll for token with short timeout since user says they're done
+                    # Poll for token - give enough time for user to authorize
                     success = await self._api.poll_for_token(
-                        self._device_code, interval=2, timeout=30
+                        self._device_code, interval=3, timeout=120
                     )
                     if success:
                         # Get homes
@@ -207,7 +207,7 @@ class TadoXConfigFlow(ConfigFlow, domain=DOMAIN):
             if self._api and self._device_code:
                 try:
                     success = await self._api.poll_for_token(
-                        self._device_code, interval=2, timeout=30
+                        self._device_code, interval=3, timeout=120
                     )
                     if success:
                         # Update the existing entry
