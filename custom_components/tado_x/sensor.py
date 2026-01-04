@@ -182,7 +182,7 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
         self._serial_number = serial_number
         self.entity_description = description
         self._attr_unique_id = f"{serial_number}_{description.key}"
-        self._attr_name = description.key.replace("_", " ").title()
+        self._attr_name = f"{description.key.replace('_', ' ').title()} ({serial_number[-4:]})"
 
     @property
     def _device(self) -> TadoXDevice | None:
