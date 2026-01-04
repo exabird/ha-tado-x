@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TadoXApi, TadoXApiError, TadoXAuthError
@@ -84,9 +85,55 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Clean up orphan device entries (devices with serial number identifiers
+    # that should be merged into room devices)
+    await _async_cleanup_orphan_devices(hass, entry, coordinator)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+
+async def _async_cleanup_orphan_devices(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: TadoXDataUpdateCoordinator,
+) -> None:
+    """Remove orphan device entries for devices that are now merged into rooms.
+
+    Previously, valve devices (VA04, SU04, etc.) created their own device entries.
+    Now they are merged into room devices. This function removes the old orphan
+    device entries that have serial number identifiers.
+    """
+    device_registry = dr.async_get(hass)
+
+    # Get all devices with serial numbers that belong to a room
+    devices_in_rooms = {
+        device.serial_number
+        for device in coordinator.data.devices.values()
+        if device.room_id is not None
+    }
+
+    # Find and remove orphan device entries
+    devices_to_remove = []
+    for device_entry in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
+        for identifier in device_entry.identifiers:
+            if identifier[0] == DOMAIN:
+                device_id = identifier[1]
+                # Check if this is a serial number identifier for a device in a room
+                if device_id in devices_in_rooms:
+                    devices_to_remove.append(device_entry.id)
+                    _LOGGER.debug(
+                        "Marking orphan device for removal: %s (%s)",
+                        device_entry.name,
+                        device_id,
+                    )
+                    break
+
+    # Remove orphan devices
+    for device_id in devices_to_remove:
+        _LOGGER.info("Removing orphan device entry: %s", device_id)
+        device_registry.async_remove_device(device_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
