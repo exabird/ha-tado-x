@@ -168,7 +168,8 @@ class TadoXDeviceBinarySensor(CoordinatorEntity[TadoXDataUpdateCoordinator], Bin
         self._serial_number = serial_number
         self.entity_description = description
         self._attr_unique_id = f"{serial_number}_{description.key}"
-        self._attr_name = f"{description.key.replace('_', ' ').title()} ({serial_number[-4:]})"
+        # Simple name without serial suffix - device name already has it
+        self._attr_name = description.key.replace("_", " ").title()
 
     @property
     def _device(self) -> TadoXDevice | None:
@@ -184,13 +185,6 @@ class TadoXDeviceBinarySensor(CoordinatorEntity[TadoXDataUpdateCoordinator], Bin
                 identifiers={(DOMAIN, self._serial_number)},
             )
 
-        # If device has a room, attach to the room device
-        if device.room_id:
-            return DeviceInfo(
-                identifiers={(DOMAIN, f"{self.coordinator.home_id}_{device.room_id}")},
-            )
-
-        # For devices without a room (like Bridge), create their own device
         device_type_names = {
             "VA04": "Radiator Valve X",
             "SU04": "Temperature Sensor X",
@@ -198,13 +192,21 @@ class TadoXDeviceBinarySensor(CoordinatorEntity[TadoXDataUpdateCoordinator], Bin
             "IB02": "Bridge X",
         }
 
+        # Determine via_device - link to room if device has one, otherwise to home
+        via_device_id = (
+            (DOMAIN, f"{self.coordinator.home_id}_{device.room_id}")
+            if device.room_id
+            else (DOMAIN, str(self.coordinator.home_id))
+        )
+
+        # Always create separate device entry for each physical device
         return DeviceInfo(
             identifiers={(DOMAIN, self._serial_number)},
             name=f"{device_type_names.get(device.device_type, device.device_type)} ({self._serial_number[-4:]})",
             manufacturer="Tado",
             model=device_type_names.get(device.device_type, device.device_type),
             sw_version=device.firmware_version,
-            via_device=(DOMAIN, str(self.coordinator.home_id)),
+            via_device=via_device_id,
         )
 
     @property
