@@ -196,6 +196,10 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 data.rooms[room_id] = room
 
             # Process other devices (bridge, thermostat controller)
+            _LOGGER.warning(
+                "otherDevices raw data: %s",
+                rooms_devices_data.get("otherDevices"),
+            )
             for device_data in rooms_devices_data.get("otherDevices") or []:
                 other_device_connection = device_data.get("connection") or {}
                 other_room_id = device_data.get("roomId")
