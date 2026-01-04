@@ -117,6 +117,16 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 if not room_id:
                     continue
 
+                # Debug: log raw room data for power/setting analysis
+                setting = room_data.get("setting", {})
+                _LOGGER.debug(
+                    "Room %s (%s) - setting: %s, manualControl: %s",
+                    room_id,
+                    room_data.get("name"),
+                    setting,
+                    room_data.get("manualControlTermination"),
+                )
+
                 # Get sensor data
                 sensor_data = room_data.get("sensorDataPoints", {})
                 inside_temp = sensor_data.get("insideTemperature", {})
