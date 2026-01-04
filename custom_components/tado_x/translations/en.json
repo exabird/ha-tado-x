@@ -1,0 +1,81 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tado X Authentication",
+        "description": "Click Submit to start the authentication process with Tado. You will be redirected to authorize this integration."
+      },
+      "auth": {
+        "title": "Authorize Tado X",
+        "description": "Please visit the following URL and enter the code to authorize Home Assistant:\n\n**URL:** {verification_uri}\n\n**Code:** `{user_code}`\n\nAfter authorizing, click Submit."
+      },
+      "select_home": {
+        "title": "Select Home",
+        "description": "Multiple Tado homes found. Please select the home you want to configure.",
+        "data": {
+          "home_id": "Home"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Tado X",
+        "description": "Your Tado X authentication has expired. Click Submit to re-authenticate."
+      },
+      "reauth_auth": {
+        "title": "Authorize Tado X",
+        "description": "Please visit the following URL and enter the code to authorize Home Assistant:\n\n**URL:** {verification_uri}\n\n**Code:** `{user_code}`\n\nAfter authorizing, click Submit."
+      }
+    },
+    "error": {
+      "auth_error": "Authentication failed. Please try again.",
+      "auth_timeout": "Authentication timed out. Please ensure you completed the authorization and try again.",
+      "cannot_connect": "Cannot connect to Tado. Please check your internet connection.",
+      "no_homes": "No Tado homes found for this account.",
+      "unknown": "An unknown error occurred."
+    },
+    "abort": {
+      "already_configured": "This Tado home is already configured.",
+      "reauth_successful": "Re-authentication successful.",
+      "unknown": "An unknown error occurred."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "heating_power": {
+        "name": "Heating Power"
+      },
+      "battery": {
+        "name": "Battery",
+        "state": {
+          "normal": "Normal",
+          "low": "Low"
+        }
+      },
+      "device_temperature": {
+        "name": "Device Temperature"
+      }
+    },
+    "binary_sensor": {
+      "window_open": {
+        "name": "Window Open"
+      },
+      "heating": {
+        "name": "Heating"
+      },
+      "overlay_active": {
+        "name": "Manual Control"
+      },
+      "connectivity": {
+        "name": "Connectivity"
+      },
+      "battery_low": {
+        "name": "Battery Low"
+      }
+    }
+  }
+}
