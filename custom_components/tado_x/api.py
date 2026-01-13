@@ -383,3 +383,60 @@ class TadoXApi:
                 "DELETE",
                 f"{TADO_HOPS_API_URL}/homes/{self._home_id}/rooms/{room_id}/openWindow",
             )
+
+    # Presence/Geofencing endpoints (My Tado API)
+    async def get_home_state(self) -> dict[str, Any]:
+        """Get the current home presence state."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+        result = await self._request("GET", f"{TADO_MY_API_URL}/homes/{self._home_id}/state")
+        return result if isinstance(result, dict) else {}
+
+    async def set_presence_home(self) -> None:
+        """Set presence to HOME (override geofencing)."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "PUT",
+            f"{TADO_MY_API_URL}/homes/{self._home_id}/presenceLock",
+            json_data={"homePresence": "HOME"},
+        )
+
+    async def set_presence_away(self) -> None:
+        """Set presence to AWAY (override geofencing)."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "PUT",
+            f"{TADO_MY_API_URL}/homes/{self._home_id}/presenceLock",
+            json_data={"homePresence": "AWAY"},
+        )
+
+    async def set_presence_auto(self) -> None:
+        """Enable automatic geofencing (remove presence lock)."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "DELETE",
+            f"{TADO_MY_API_URL}/homes/{self._home_id}/presenceLock",
+        )
+
+    # Device configuration endpoints
+    async def set_temperature_offset(self, device_serial: str, offset: float) -> None:
+        """Set the temperature offset for a device.
+
+        Args:
+            device_serial: Serial number of the device
+            offset: Temperature offset in °C (typically -9.9 to +9.9)
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "PATCH",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/devices/{device_serial}",
+            json_data={"temperatureOffset": {"value": offset}},
+        )

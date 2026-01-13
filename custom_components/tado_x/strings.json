@@ -38,7 +38,38 @@
       "unknown": "An unknown error occurred."
     }
   },
+  "services": {
+    "set_temperature_offset": {
+      "name": "Set temperature offset",
+      "description": "Adjust the temperature offset for a Tado X device (valve or sensor) to calibrate temperature readings.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Tado X device to calibrate"
+        },
+        "offset": {
+          "name": "Temperature offset",
+          "description": "Temperature offset in °C. Positive values increase the reading, negative values decrease it."
+        }
+      }
+    }
+  },
   "entity": {
+    "climate": {
+      "tado_x": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Home",
+              "away": "Away",
+              "auto": "Auto (Geofencing)",
+              "boost": "Boost",
+              "schedule": "Schedule"
+            }
+          }
+        }
+      }
+    },
     "sensor": {
       "temperature": {
         "name": "Temperature"

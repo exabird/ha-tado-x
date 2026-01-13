@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import Final
+
+import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import ATTR_DEVICE_ID, Platform
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TadoXApi, TadoXApiError, TadoXAuthError
@@ -25,6 +29,21 @@ from .coordinator import TadoXDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.SENSOR, Platform.BINARY_SENSOR]
+
+# Service constants
+SERVICE_SET_TEMPERATURE_OFFSET: Final = "set_temperature_offset"
+ATTR_OFFSET: Final = "offset"
+
+# Service schemas
+SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_DEVICE_ID): cv.string,
+        vol.Required(ATTR_OFFSET): vol.All(
+            vol.Coerce(float),
+            vol.Range(min=-9.9, max=9.9),
+        ),
+    }
+)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -83,6 +102,65 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    # Register services
+    async def async_set_temperature_offset(call: ServiceCall) -> None:
+        """Handle set_temperature_offset service call."""
+        device_id = call.data[ATTR_DEVICE_ID]
+        offset = call.data[ATTR_OFFSET]
+
+        # Get device registry
+        device_registry_instance = dr.async_get(hass)
+        device = device_registry_instance.async_get(device_id)
+
+        if not device:
+            _LOGGER.error("Device %s not found", device_id)
+            return
+
+        # Find the device serial number from identifiers
+        device_serial = None
+        for identifier in device.identifiers:
+            if identifier[0] == DOMAIN:
+                # Identifier format is (DOMAIN, serial_number) or (DOMAIN, home_id_room_id)
+                device_serial = identifier[1]
+                break
+
+        if not device_serial:
+            _LOGGER.error("Could not find serial number for device %s", device_id)
+            return
+
+        # Check if this is a room device (format: home_id_room_id) or a real device
+        if "_" in device_serial:
+            _LOGGER.error(
+                "Cannot set temperature offset for room device %s. "
+                "Please select a specific valve or sensor device.",
+                device_id,
+            )
+            return
+
+        try:
+            await coordinator.api.set_temperature_offset(device_serial, offset)
+            await coordinator.async_request_refresh()
+            _LOGGER.info(
+                "Set temperature offset for device %s to %.1f°C",
+                device_serial,
+                offset,
+            )
+        except Exception as err:
+            _LOGGER.error(
+                "Failed to set temperature offset for device %s: %s",
+                device_serial,
+                err,
+            )
+
+    # Register service (only once per integration)
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_TEMPERATURE_OFFSET):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_TEMPERATURE_OFFSET,
+            async_set_temperature_offset,
+            schema=SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA,
+        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
