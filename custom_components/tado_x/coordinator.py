@@ -63,6 +63,8 @@ class TadoXData:
     rooms: dict[int, TadoXRoom] = field(default_factory=dict)
     devices: dict[str, TadoXDevice] = field(default_factory=dict)
     other_devices: list[TadoXDevice] = field(default_factory=list)
+    presence: str | None = None  # HOME, AWAY, or None if not locked
+    presence_locked: bool = False  # Whether presence is manually set
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -96,10 +98,17 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             # Get rooms with devices
             rooms_devices_data = await self.api.get_rooms_and_devices()
 
+            # Get home presence state
+            home_state = await self.api.get_home_state()
+            presence = home_state.get("presence")
+            presence_locked = home_state.get("presenceLocked", False)
+
             # Process the data
             data = TadoXData(
                 home_id=self.home_id,
                 home_name=self.home_name,
+                presence=presence,
+                presence_locked=presence_locked,
             )
 
             # Process rooms and devices

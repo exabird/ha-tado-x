@@ -32,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PRESET_HOME = "home"
 PRESET_AWAY = "away"
+PRESET_AUTO = "auto"
 PRESET_BOOST = "boost"
 PRESET_SCHEDULE = "schedule"
 
@@ -64,7 +65,7 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         | ClimateEntityFeature.TURN_ON
     )
     _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF, HVACMode.AUTO]
-    _attr_preset_modes = [PRESET_SCHEDULE, PRESET_BOOST]
+    _attr_preset_modes = [PRESET_SCHEDULE, PRESET_BOOST, PRESET_HOME, PRESET_AWAY, PRESET_AUTO]
     _attr_min_temp = MIN_TEMP
     _attr_max_temp = MAX_TEMP
     _attr_target_temperature_step = TEMP_STEP
@@ -175,9 +176,24 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         if not room:
             return None
 
+        # Check boost first
         if room.boost_mode:
             return PRESET_BOOST
 
+        # Check presence state
+        presence = self.coordinator.data.presence
+        presence_locked = self.coordinator.data.presence_locked
+
+        if presence_locked:
+            if presence == "HOME":
+                return PRESET_HOME
+            if presence == "AWAY":
+                return PRESET_AWAY
+        elif presence is not None:
+            # Geofencing is active (AUTO mode)
+            return PRESET_AUTO
+
+        # Check schedule
         if not room.manual_control_active:
             return PRESET_SCHEDULE
 
@@ -256,6 +272,12 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
             await self.coordinator.api.resume_schedule(self._room_id)
         elif preset_mode == PRESET_BOOST:
             await self.coordinator.api.set_boost_mode(self._room_id)
+        elif preset_mode == PRESET_HOME:
+            await self.coordinator.api.set_presence_home()
+        elif preset_mode == PRESET_AWAY:
+            await self.coordinator.api.set_presence_away()
+        elif preset_mode == PRESET_AUTO:
+            await self.coordinator.api.set_presence_auto()
 
         await self.coordinator.async_request_refresh()
 
