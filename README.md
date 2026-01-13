@@ -33,9 +33,22 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 
 | Entity Type | Features |
 |-------------|----------|
-| **Climate** | Temperature control, HVAC modes (Heat/Off/Auto), Preset modes (Schedule/Boost) |
+| **Climate** | Temperature control, HVAC modes (Heat/Off/Auto), Preset modes (Schedule/Boost/Home/Away/Auto) |
 | **Sensors** | Temperature, Humidity, Heating power, Battery status |
 | **Binary Sensors** | Window open, Heating active, Manual control, Connectivity, Low battery |
+| **Services** | Temperature offset calibration |
+
+### Climate Presets
+
+- **Schedule**: Follow the smart schedule
+- **Boost**: Quick temperature boost
+- **Home**: Manually set presence to Home (override geofencing)
+- **Away**: Manually set presence to Away (override geofencing)
+- **Auto (Geofencing)**: Enable automatic presence detection
+
+### Services
+
+- **set_temperature_offset**: Calibrate device temperature readings (-9.9°C to +9.9°C)
 
 ## Supported Devices
 
@@ -91,9 +104,11 @@ Want to contribute code? Great! Here's how to get started:
 
 ### Roadmap
 
+Implemented features:
+- [x] Away preset (geofencing) - [Issue #2](https://github.com/exabird/ha-tado-x/issues/2) ✅ v1.1.0
+- [x] Temperature offset adjustment service - [Issue #3](https://github.com/exabird/ha-tado-x/issues/3) ✅ v1.1.0
+
 Planned features based on community feedback:
-- [ ] Away preset (geofencing) - [Issue #2](https://github.com/exabird/ha-tado-x/issues/2)
-- [ ] Temperature offset adjustment service
 - [ ] Open window detection toggle
 - [ ] Child lock control
 
