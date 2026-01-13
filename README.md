@@ -67,6 +67,54 @@ The integration polls every 30 seconds (~2,880 requests/day). Without Auto-Assis
 2. Copy to your `config/custom_components/` directory
 3. Restart Home Assistant
 
+---
+
+## Contributing
+
+This is a community-maintained integration for Tado X devices. Contributions are welcome!
+
+### Reporting Issues
+
+Found a bug or have a feature request? Please use our issue templates:
+- [Report a Bug](https://github.com/exabird/ha-tado-x/issues/new?template=bug_report.md)
+- [Request a Feature](https://github.com/exabird/ha-tado-x/issues/new?template=feature_request.md)
+
+### Development
+
+Want to contribute code? Great! Here's how to get started:
+
+1. Fork this repository
+2. Create a branch for your feature: `git checkout -b feature/my-feature`
+3. Make your changes
+4. Test thoroughly with your Tado X setup
+5. Submit a pull request
+
+### Roadmap
+
+Planned features based on community feedback:
+- [ ] Away preset (geofencing) - [Issue #2](https://github.com/exabird/ha-tado-x/issues/2)
+- [ ] Temperature offset adjustment service
+- [ ] Open window detection toggle
+- [ ] Child lock control
+
+See [all feature requests](https://github.com/exabird/ha-tado-x/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement) for the full list.
+
+## Why This Integration Exists
+
+Tado X devices use a different API than previous Tado generations. While Tado recommends using Matter integration, many users experience issues with Matter setup (greyed-out pairing buttons, requiring full device resets).
+
+This integration uses Tado's official API to provide reliable Home Assistant integration for Tado X users who:
+- Cannot get Matter integration working
+- Prefer cloud-based API control
+- Need features not available through Matter
+- Want full Home Assistant integration capabilities
+
+## Support
+
+- **Community Forum:** Discuss on [Home Assistant Community](https://community.home-assistant.io/)
+- **Issues:** Report bugs or request features on [GitHub Issues](https://github.com/exabird/ha-tado-x/issues)
+- **Hardware Support:** For Tado device issues, contact [Tado Support](https://support.tado.com/)
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
