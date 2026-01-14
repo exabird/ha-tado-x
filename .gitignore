@@ -72,3 +72,7 @@ Thumbs.db
 .HA_VERSION
 home-assistant.log
 home-assistant_v2.db
+
+# Claude Code
+CLAUDE.md
+.claude/
