@@ -440,3 +440,23 @@ class TadoXApi:
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/roomsAndDevices/devices/{device_serial}",
             json_data={"temperatureOffset": offset},
         )
+
+    async def add_meter_reading(self, reading: int, date: str | None = None) -> None:
+        """Add a meter reading to Tado Energy IQ.
+
+        Args:
+            reading: Integer meter reading value
+            date: Date in YYYY-MM-DD format (defaults to today)
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        from datetime import date as date_module
+
+        reading_date = date if date else date_module.today().isoformat()
+
+        await self._request(
+            "POST",
+            f"{TADO_MY_API_URL}/homes/{self._home_id}/eiqMeterReadings",
+            json_data={"date": reading_date, "reading": reading},
+        )

@@ -22,3 +22,25 @@ set_temperature_offset:
           max: 9.9
           step: 0.1
           unit_of_measurement: "°C"
+
+add_meter_reading:
+  name: Add meter reading
+  description: Upload a meter reading to Tado Energy IQ
+  fields:
+    reading:
+      name: Reading
+      description: Meter reading value (integer)
+      required: true
+      example: 12345
+      selector:
+        number:
+          min: 0
+          max: 999999999
+          mode: box
+    date:
+      name: Date
+      description: Date of reading (YYYY-MM-DD format, defaults to today)
+      required: false
+      example: "2026-01-14"
+      selector:
+        text:
