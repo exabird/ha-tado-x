@@ -103,6 +103,18 @@
       },
       "device_temperature": {
         "name": "Device Temperature"
+      },
+      "api_calls_today": {
+        "name": "API calls today"
+      },
+      "api_quota_remaining": {
+        "name": "API quota remaining"
+      },
+      "api_usage_percentage": {
+        "name": "API usage"
+      },
+      "api_reset_time": {
+        "name": "API reset time"
       }
     },
     "binary_sensor": {

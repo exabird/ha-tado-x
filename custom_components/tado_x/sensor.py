@@ -19,8 +19,8 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
-from .coordinator import TadoXDataUpdateCoordinator, TadoXDevice, TadoXRoom
+from .const import API_QUOTA_FREE_TIER, DOMAIN
+from .coordinator import TadoXData, TadoXDataUpdateCoordinator, TadoXDevice, TadoXRoom
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +37,13 @@ class TadoXDeviceSensorEntityDescription(SensorEntityDescription):
     """Describes a Tado X device sensor entity."""
 
     value_fn: Callable[[TadoXDevice], Any]
+
+
+@dataclass(frozen=True, kw_only=True)
+class TadoXHomeSensorEntityDescription(SensorEntityDescription):
+    """Describes a Tado X home sensor entity."""
+
+    value_fn: Callable[[TadoXData], Any]
 
 
 ROOM_SENSORS: tuple[TadoXRoomSensorEntityDescription, ...] = (
@@ -85,6 +92,38 @@ DEVICE_SENSORS: tuple[TadoXDeviceSensorEntityDescription, ...] = (
     ),
 )
 
+HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
+    TadoXHomeSensorEntityDescription(
+        key="api_calls_today",
+        translation_key="api_calls_today",
+        icon="mdi:counter",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.api_calls_today,
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="api_quota_remaining",
+        translation_key="api_quota_remaining",
+        icon="mdi:api",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: max(0, API_QUOTA_FREE_TIER - data.api_calls_today),
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="api_usage_percentage",
+        translation_key="api_usage_percentage",
+        icon="mdi:percent",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: min(100, round((data.api_calls_today / API_QUOTA_FREE_TIER) * 100, 1)),
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="api_reset_time",
+        translation_key="api_reset_time",
+        icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda data: data.api_reset_time,
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -95,6 +134,10 @@ async def async_setup_entry(
     coordinator: TadoXDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SensorEntity] = []
+
+    # Add home-level sensors (API monitoring)
+    for description in HOME_SENSORS:
+        entities.append(TadoXHomeSensor(coordinator, description))
 
     # Add room sensors
     for room_id in coordinator.data.rooms:
@@ -111,6 +154,43 @@ async def async_setup_entry(
                 entities.append(TadoXDeviceSensor(coordinator, device.serial_number, description))
 
     async_add_entities(entities)
+
+
+class TadoXHomeSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEntity):
+    """Tado X home sensor entity."""
+
+    _attr_has_entity_name = True
+    entity_description: TadoXHomeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: TadoXDataUpdateCoordinator,
+        description: TadoXHomeSensorEntityDescription,
+    ) -> None:
+        """Initialize home sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.data.home_id}_{description.key}"
+        self._attr_name = description.key.replace("_", " ").title()
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, str(self.coordinator.data.home_id))},
+            name=f"{self.coordinator.data.home_name} Home",
+            manufacturer="Tado",
+        )
+
+    @property
+    def native_value(self) -> Any:
+        """Return the sensor value."""
+        return self.entity_description.value_fn(self.coordinator.data)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.async_write_ha_state()
 
 
 class TadoXRoomSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEntity):

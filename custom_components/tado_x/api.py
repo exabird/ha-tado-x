@@ -44,6 +44,10 @@ class TadoXApi:
         self._refresh_token = refresh_token
         self._token_expiry = token_expiry
         self._home_id: int | None = None
+        self._api_calls_today = 0
+        self._api_call_reset_time = datetime.now().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
 
     @property
     def access_token(self) -> str | None:
@@ -69,6 +73,16 @@ class TadoXApi:
     def home_id(self, value: int) -> None:
         """Set the home ID."""
         self._home_id = value
+
+    @property
+    def api_calls_today(self) -> int:
+        """Return number of API calls made today."""
+        return self._api_calls_today
+
+    @property
+    def api_reset_time(self) -> datetime:
+        """Return when the API quota resets."""
+        return self._api_call_reset_time
 
     async def start_device_auth(self) -> dict[str, Any]:
         """Start the device authorization flow.
@@ -206,6 +220,17 @@ class TadoXApi:
     ) -> dict | list | None:
         """Make an authenticated API request."""
         await self._ensure_valid_token()
+
+        # Track API call
+        self._api_calls_today += 1
+
+        # Reset counter if new day
+        now = datetime.now()
+        if now >= self._api_call_reset_time:
+            self._api_calls_today = 1
+            self._api_call_reset_time = now.replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ) + timedelta(days=1)
 
         headers = {
             "Authorization": f"Bearer {self._access_token}",
