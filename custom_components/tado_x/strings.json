@@ -126,6 +126,9 @@
       "api_quota_remaining": {
         "name": "API quota remaining"
       },
+      "api_quota_limit": {
+        "name": "API quota limit"
+      },
       "api_usage_percentage": {
         "name": "API usage"
       },
