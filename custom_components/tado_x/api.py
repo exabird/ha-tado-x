@@ -66,6 +66,10 @@ class TadoXApi:
             self._api_calls_today = 0
             self._api_call_reset_time = default_reset_time
 
+        # Rate limit info from API headers (will be updated on each request)
+        self._api_quota_limit: int | None = None  # From ratelimit-policy header
+        self._api_quota_remaining: int | None = None  # From ratelimit header
+
     @property
     def access_token(self) -> str | None:
         """Return the current access token."""
@@ -110,6 +114,46 @@ class TadoXApi:
     def has_auto_assist(self, value: bool) -> None:
         """Set whether user has Auto-Assist subscription."""
         self._has_auto_assist = value
+
+    @property
+    def api_quota_limit(self) -> int | None:
+        """Return the API quota limit from headers (if available)."""
+        return self._api_quota_limit
+
+    @property
+    def api_quota_remaining(self) -> int | None:
+        """Return the API quota remaining from headers (if available)."""
+        return self._api_quota_remaining
+
+    def _parse_rate_limit_headers(self, headers: dict) -> None:
+        """Parse rate limit information from Tado API response headers.
+
+        Tado returns rate limit info in these headers:
+        - ratelimit-policy: "perday";q=20000;w=86400 (q=quota limit, w=window in seconds)
+        - ratelimit: "perday";r=17833 (r=remaining requests)
+        """
+        import re
+
+        # Parse ratelimit-policy header for quota limit
+        policy_header = headers.get("ratelimit-policy", "")
+        if policy_header:
+            # Extract q=NUMBER from the header
+            quota_match = re.search(r"q=(\d+)", policy_header)
+            if quota_match:
+                self._api_quota_limit = int(quota_match.group(1))
+                # Auto-detect Auto-Assist based on quota (20000 = Auto-Assist, 100 = free)
+                if self._api_quota_limit >= 20000:
+                    self._has_auto_assist = True
+                elif self._api_quota_limit <= 100:
+                    self._has_auto_assist = False
+
+        # Parse ratelimit header for remaining requests
+        ratelimit_header = headers.get("ratelimit", "")
+        if ratelimit_header:
+            # Extract r=NUMBER from the header
+            remaining_match = re.search(r"r=(\d+)", ratelimit_header)
+            if remaining_match:
+                self._api_quota_remaining = int(remaining_match.group(1))
 
     async def start_device_auth(self) -> dict[str, Any]:
         """Start the device authorization flow.
@@ -277,6 +321,9 @@ class TadoXApi:
                 headers=headers,
                 json=json_data,
             ) as response:
+                # Parse rate limit headers from Tado API
+                self._parse_rate_limit_headers(response.headers)
+
                 if response.status == 401:
                     # Try to refresh token and retry
                     await self.refresh_access_token()

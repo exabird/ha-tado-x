@@ -71,6 +71,9 @@ class TadoXData:
     api_calls_today: int = 0
     api_reset_time: datetime | None = None
     has_auto_assist: bool = False
+    # Real values from Tado API response headers
+    api_quota_limit: int | None = None  # From ratelimit-policy header (q=)
+    api_quota_remaining: int | None = None  # From ratelimit header (r=)
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -281,10 +284,12 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 data.other_devices.append(device)
                 data.devices[device.serial_number] = device
 
-            # Populate API stats
+            # Populate API stats (prefer real values from headers when available)
             data.api_calls_today = self.api.api_calls_today
             data.api_reset_time = self.api.api_reset_time
             data.has_auto_assist = self.api.has_auto_assist
+            data.api_quota_limit = self.api.api_quota_limit
+            data.api_quota_remaining = self.api.api_quota_remaining
 
             # Save API stats for persistence
             if self._save_api_stats_callback:

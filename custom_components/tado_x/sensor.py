@@ -26,8 +26,23 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_api_quota(data: TadoXData) -> int:
-    """Get the appropriate API quota based on subscription."""
+    """Get the appropriate API quota.
+
+    Prefers real value from API headers if available, falls back to default values.
+    """
+    if data.api_quota_limit is not None:
+        return data.api_quota_limit
     return API_QUOTA_PREMIUM if data.has_auto_assist else API_QUOTA_FREE_TIER
+
+
+def _get_api_remaining(data: TadoXData) -> int:
+    """Get remaining API calls.
+
+    Prefers real value from API headers if available, falls back to calculated value.
+    """
+    if data.api_quota_remaining is not None:
+        return data.api_quota_remaining
+    return max(0, _get_api_quota(data) - data.api_calls_today)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -97,20 +112,58 @@ DEVICE_SENSORS: tuple[TadoXDeviceSensorEntityDescription, ...] = (
     ),
 )
 
+def _get_api_usage_percentage(data: TadoXData) -> float:
+    """Calculate API usage percentage.
+
+    Uses real values from API headers when available for accurate calculation.
+    """
+    quota = _get_api_quota(data)
+    if quota == 0:
+        return 100.0
+
+    # Calculate calls used based on quota and remaining
+    if data.api_quota_remaining is not None and data.api_quota_limit is not None:
+        # Use real values from headers
+        calls_used = data.api_quota_limit - data.api_quota_remaining
+    else:
+        # Fall back to internal counter
+        calls_used = data.api_calls_today
+
+    return min(100, round((calls_used / quota) * 100, 1))
+
+
+def _get_api_calls_today(data: TadoXData) -> int:
+    """Get API calls made today.
+
+    Uses real values from API headers when available.
+    """
+    if data.api_quota_remaining is not None and data.api_quota_limit is not None:
+        # Calculate from real header values
+        return data.api_quota_limit - data.api_quota_remaining
+    return data.api_calls_today
+
+
 HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
     TadoXHomeSensorEntityDescription(
         key="api_calls_today",
         translation_key="api_calls_today",
         icon="mdi:counter",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.api_calls_today,
+        value_fn=_get_api_calls_today,
     ),
     TadoXHomeSensorEntityDescription(
         key="api_quota_remaining",
         translation_key="api_quota_remaining",
         icon="mdi:api",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: max(0, _get_api_quota(data) - data.api_calls_today),
+        value_fn=_get_api_remaining,
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="api_quota_limit",
+        translation_key="api_quota_limit",
+        icon="mdi:api",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_get_api_quota,
     ),
     TadoXHomeSensorEntityDescription(
         key="api_usage_percentage",
@@ -118,7 +171,7 @@ HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
         icon="mdi:percent",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: min(100, round((data.api_calls_today / _get_api_quota(data)) * 100, 1)),
+        value_fn=_get_api_usage_percentage,
     ),
     TadoXHomeSensorEntityDescription(
         key="api_reset_time",

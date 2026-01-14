@@ -53,13 +53,14 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 
 ### API Usage Monitoring
 
-Four new sensors help you track API quota usage:
+Five sensors help you track API quota usage (values read directly from Tado API headers when available):
 - **API calls today**: Number of API requests since midnight
-- **API quota remaining**: Remaining requests (100/day free, 20,000/day with Auto-Assist)
+- **API quota remaining**: Remaining requests
+- **API quota limit**: Your daily quota (auto-detected from API: 100 free, 20,000 with Auto-Assist)
 - **API usage**: Percentage of daily quota used
-- **API reset time**: When the quota resets (midnight)
+- **API reset time**: When the quota resets
 
-These sensors are especially useful for free tier users to avoid hitting the 100 requests/day limit.
+These sensors use **real values from Tado API response headers** when available, providing accurate quota tracking.
 
 ## Supported Devices
 
@@ -134,6 +135,7 @@ Want to contribute code? Great! Here's how to get started:
 - [x] Smart polling based on subscription tier - [Issue #4](https://github.com/exabird/ha-tado-x/issues/4) ✅ v1.3.2
 - [x] API counter persistence across restarts ✅ v1.3.2
 - [x] Configurable polling interval ✅ v1.3.2
+- [x] Real API quota values from response headers ✅ v1.3.3
 
 **Planned features based on community feedback:**
 - [ ] Open window detection toggle
