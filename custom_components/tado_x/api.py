@@ -37,6 +37,10 @@ class TadoXApi:
         access_token: str | None = None,
         refresh_token: str | None = None,
         token_expiry: datetime | None = None,
+        api_calls_today: int = 0,
+        api_reset_time: datetime | None = None,
+        has_auto_assist: bool = False,
+        on_token_refresh: callable | None = None,
     ) -> None:
         """Initialize the API client."""
         self._session = session
@@ -44,10 +48,23 @@ class TadoXApi:
         self._refresh_token = refresh_token
         self._token_expiry = token_expiry
         self._home_id: int | None = None
-        self._api_calls_today = 0
-        self._api_call_reset_time = datetime.now(timezone.utc).replace(
+        self._has_auto_assist = has_auto_assist
+        self._on_token_refresh = on_token_refresh
+
+        # Initialize API call tracking with persistence support
+        now = datetime.now(timezone.utc)
+        default_reset_time = now.replace(
             hour=0, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
+
+        if api_reset_time and api_reset_time > now:
+            # Restore persisted values if reset time hasn't passed
+            self._api_calls_today = api_calls_today
+            self._api_call_reset_time = api_reset_time
+        else:
+            # Reset counter if new day or no persisted data
+            self._api_calls_today = 0
+            self._api_call_reset_time = default_reset_time
 
     @property
     def access_token(self) -> str | None:
@@ -83,6 +100,16 @@ class TadoXApi:
     def api_reset_time(self) -> datetime:
         """Return when the API quota resets."""
         return self._api_call_reset_time
+
+    @property
+    def has_auto_assist(self) -> bool:
+        """Return whether user has Auto-Assist subscription."""
+        return self._has_auto_assist
+
+    @has_auto_assist.setter
+    def has_auto_assist(self, value: bool) -> None:
+        """Set whether user has Auto-Assist subscription."""
+        self._has_auto_assist = value
 
     async def start_device_auth(self) -> dict[str, Any]:
         """Start the device authorization flow.
@@ -198,6 +225,12 @@ class TadoXApi:
                 self._refresh_token = data.get("refresh_token", self._refresh_token)
                 expires_in = data.get("expires_in", 600)
                 self._token_expiry = datetime.now() + timedelta(seconds=expires_in)
+
+                # Persist tokens immediately after refresh to prevent auth loss on restart
+                if self._on_token_refresh:
+                    self._on_token_refresh()
+
+                _LOGGER.debug("Token refreshed successfully, expires in %s seconds", expires_in)
                 return True
 
         except aiohttp.ClientError as err:

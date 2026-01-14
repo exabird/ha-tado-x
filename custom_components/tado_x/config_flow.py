@@ -8,17 +8,22 @@ from typing import Any
 import aiohttp
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TadoXApi, TadoXAuthError
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_HAS_AUTO_ASSIST,
     CONF_HOME_ID,
     CONF_HOME_NAME,
     CONF_REFRESH_TOKEN,
+    CONF_SCAN_INTERVAL,
     CONF_TOKEN_EXPIRY,
     DOMAIN,
+    SCAN_INTERVAL_AUTO_ASSIST,
+    SCAN_INTERVAL_FREE_TIER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,6 +33,12 @@ class TadoXConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Tado X."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Get the options flow for this handler."""
+        return TadoXOptionsFlow(config_entry)
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -236,4 +247,73 @@ class TadoXConfigFlow(ConfigFlow, domain=DOMAIN):
                 "user_code": self._user_code or "",
                 "verification_uri": self._verification_uri or "",
             },
+        )
+
+
+class TadoXOptionsFlow(OptionsFlow):
+    """Handle Tado X options."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            has_auto_assist = user_input[CONF_HAS_AUTO_ASSIST]
+            custom_interval = user_input.get(CONF_SCAN_INTERVAL)
+
+            # Determine scan interval: custom if set, otherwise based on tier
+            if custom_interval and custom_interval > 0:
+                scan_interval = custom_interval
+            else:
+                scan_interval = (
+                    SCAN_INTERVAL_AUTO_ASSIST if has_auto_assist
+                    else SCAN_INTERVAL_FREE_TIER
+                )
+
+            # Update the config entry data
+            new_data = {
+                **self.config_entry.data,
+                CONF_HAS_AUTO_ASSIST: has_auto_assist,
+                CONF_SCAN_INTERVAL: scan_interval,
+            }
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=new_data,
+            )
+
+            # Update the coordinator if it exists
+            if self.config_entry.entry_id in self.hass.data.get(DOMAIN, {}):
+                coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
+                coordinator.api.has_auto_assist = has_auto_assist
+                coordinator.update_scan_interval(scan_interval)
+
+            return self.async_create_entry(title="", data={})
+
+        current_auto_assist = self.config_entry.data.get(CONF_HAS_AUTO_ASSIST, False)
+        current_interval = self.config_entry.data.get(CONF_SCAN_INTERVAL, 0)
+
+        # Suggested intervals based on tier
+        default_interval = (
+            SCAN_INTERVAL_AUTO_ASSIST if current_auto_assist
+            else SCAN_INTERVAL_FREE_TIER
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_HAS_AUTO_ASSIST,
+                        default=current_auto_assist,
+                    ): bool,
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=current_interval if current_interval > 0 else default_interval,
+                    ): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
+                }
+            ),
         )

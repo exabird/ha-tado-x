@@ -38,6 +38,22 @@
       "unknown": "An unknown error occurred."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tado X Options",
+        "description": "Configure your Tado X integration settings.\n\n**API Quota:**\n- Without Auto-Assist: 100 requests/day → updates every 45 min\n- With Auto-Assist: 20,000 requests/day → updates every 30 sec",
+        "data": {
+          "has_auto_assist": "Auto-Assist subscription",
+          "scan_interval": "Update interval (seconds)"
+        },
+        "data_description": {
+          "has_auto_assist": "Enable this if you have an Auto-Assist subscription. This will automatically adjust the update interval.",
+          "scan_interval": "How often to poll the Tado API (in seconds). Minimum: 30s, Maximum: 3600s (1 hour). Without Auto-Assist, keep at 2700s (45 min) to stay under 100 requests/day."
+        }
+      }
+    }
+  },
   "services": {
     "set_temperature_offset": {
       "name": "Set temperature offset",
