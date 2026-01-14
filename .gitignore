@@ -73,6 +73,6 @@ Thumbs.db
 home-assistant.log
 home-assistant_v2.db
 
-# Claude Code
+# Local dev config
 CLAUDE.md
 .claude/
