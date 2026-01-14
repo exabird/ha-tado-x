@@ -22,6 +22,10 @@ CONF_TOKEN_EXPIRY: Final = "token_expiry"
 # Update intervals
 DEFAULT_SCAN_INTERVAL: Final = 30  # seconds
 
+# API Rate Limits
+API_QUOTA_FREE_TIER: Final = 100  # requests per day without Auto-Assist
+API_QUOTA_PREMIUM: Final = 20000  # requests per day with Auto-Assist
+
 # Device types
 DEVICE_TYPE_VALVE: Final = "VA04"  # Tado X Radiator Valve
 DEVICE_TYPE_THERMOSTAT: Final = "TR04"  # Tado X Thermostat

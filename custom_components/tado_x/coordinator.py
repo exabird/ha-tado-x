@@ -65,6 +65,8 @@ class TadoXData:
     other_devices: list[TadoXDevice] = field(default_factory=list)
     presence: str | None = None  # HOME, AWAY, or None if not locked
     presence_locked: bool = False  # Whether presence is manually set
+    api_calls_today: int = 0
+    api_reset_time: datetime | None = None
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -251,6 +253,10 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
 
                 data.other_devices.append(device)
                 data.devices[device.serial_number] = device
+
+            # Populate API stats
+            data.api_calls_today = self.api.api_calls_today
+            data.api_reset_time = self.api.api_reset_time
 
             return data
 
