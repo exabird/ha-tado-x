@@ -10,7 +10,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_DEVICE_ID, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -34,6 +34,10 @@ PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.SENSOR, Platform.BINARY_
 SERVICE_SET_TEMPERATURE_OFFSET: Final = "set_temperature_offset"
 ATTR_OFFSET: Final = "offset"
 
+SERVICE_ADD_METER_READING: Final = "add_meter_reading"
+ATTR_READING: Final = "reading"
+ATTR_DATE: Final = "date"
+
 # Service schemas
 SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA = vol.Schema(
     {
@@ -42,6 +46,13 @@ SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA = vol.Schema(
             vol.Coerce(float),
             vol.Range(min=-9.9, max=9.9),
         ),
+    }
+)
+
+SERVICE_ADD_METER_READING_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_READING): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional(ATTR_DATE): cv.string,
     }
 )
 
@@ -153,13 +164,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 err,
             )
 
-    # Register service (only once per integration)
+    # Register temperature offset service (only once per integration)
     if not hass.services.has_service(DOMAIN, SERVICE_SET_TEMPERATURE_OFFSET):
         hass.services.async_register(
             DOMAIN,
             SERVICE_SET_TEMPERATURE_OFFSET,
             async_set_temperature_offset,
             schema=SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA,
+        )
+
+    async def async_add_meter_reading(call: ServiceCall) -> None:
+        """Handle add_meter_reading service call."""
+        reading = call.data[ATTR_READING]
+        date = call.data.get(ATTR_DATE)
+
+        try:
+            await coordinator.api.add_meter_reading(reading, date)
+            _LOGGER.info("Meter reading %s added successfully", reading)
+        except TadoXApiError as err:
+            _LOGGER.error("Failed to add meter reading: %s", err)
+            raise HomeAssistantError(f"Failed to add meter reading: {err}") from err
+
+    # Register meter reading service (only once per integration)
+    if not hass.services.has_service(DOMAIN, SERVICE_ADD_METER_READING):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_ADD_METER_READING,
+            async_add_meter_reading,
+            schema=SERVICE_ADD_METER_READING_SCHEMA,
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

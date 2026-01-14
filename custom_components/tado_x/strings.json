@@ -52,6 +52,20 @@
           "description": "Temperature offset in °C. Positive values increase the reading, negative values decrease it."
         }
       }
+    },
+    "add_meter_reading": {
+      "name": "Add meter reading",
+      "description": "Upload a meter reading to Tado Energy IQ",
+      "fields": {
+        "reading": {
+          "name": "Reading",
+          "description": "Meter reading value (integer)"
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date of reading (YYYY-MM-DD format, defaults to today)"
+        }
+      }
     }
   },
   "entity": {
