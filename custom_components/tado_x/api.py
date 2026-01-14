@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
@@ -45,7 +45,7 @@ class TadoXApi:
         self._token_expiry = token_expiry
         self._home_id: int | None = None
         self._api_calls_today = 0
-        self._api_call_reset_time = datetime.now().replace(
+        self._api_call_reset_time = datetime.now(timezone.utc).replace(
             hour=0, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
 
@@ -225,7 +225,7 @@ class TadoXApi:
         self._api_calls_today += 1
 
         # Reset counter if new day
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         if now >= self._api_call_reset_time:
             self._api_calls_today = 1
             self._api_call_reset_time = now.replace(
