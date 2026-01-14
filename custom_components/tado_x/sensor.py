@@ -19,10 +19,15 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import API_QUOTA_FREE_TIER, DOMAIN
+from .const import API_QUOTA_FREE_TIER, API_QUOTA_PREMIUM, DOMAIN
 from .coordinator import TadoXData, TadoXDataUpdateCoordinator, TadoXDevice, TadoXRoom
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_api_quota(data: TadoXData) -> int:
+    """Get the appropriate API quota based on subscription."""
+    return API_QUOTA_PREMIUM if data.has_auto_assist else API_QUOTA_FREE_TIER
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -105,7 +110,7 @@ HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
         translation_key="api_quota_remaining",
         icon="mdi:api",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: max(0, API_QUOTA_FREE_TIER - data.api_calls_today),
+        value_fn=lambda data: max(0, _get_api_quota(data) - data.api_calls_today),
     ),
     TadoXHomeSensorEntityDescription(
         key="api_usage_percentage",
@@ -113,7 +118,7 @@ HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
         icon="mdi:percent",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: min(100, round((data.api_calls_today / API_QUOTA_FREE_TIER) * 100, 1)),
+        value_fn=lambda data: min(100, round((data.api_calls_today / _get_api_quota(data)) * 100, 1)),
     ),
     TadoXHomeSensorEntityDescription(
         key="api_reset_time",

@@ -18,13 +18,23 @@ CONF_HOME_NAME: Final = "home_name"
 CONF_ACCESS_TOKEN: Final = "access_token"
 CONF_REFRESH_TOKEN: Final = "refresh_token"
 CONF_TOKEN_EXPIRY: Final = "token_expiry"
+CONF_API_CALLS_TODAY: Final = "api_calls_today"
+CONF_API_RESET_TIME: Final = "api_reset_time"
+CONF_HAS_AUTO_ASSIST: Final = "has_auto_assist"
 
-# Update intervals
-DEFAULT_SCAN_INTERVAL: Final = 30  # seconds
+# Update intervals (in seconds)
+# Free tier: 100 req/day ÷ 3 req/update = 33 updates max → 45 min interval = 32 updates × 3 = 96 req/day
+SCAN_INTERVAL_FREE_TIER: Final = 2700  # 45 minutes - stays under 100 req/day quota
+SCAN_INTERVAL_AUTO_ASSIST: Final = 30  # 30 seconds - for 20k req/day quota
+DEFAULT_SCAN_INTERVAL: Final = 30  # seconds (legacy, use tier-specific)
 
 # API Rate Limits
 API_QUOTA_FREE_TIER: Final = 100  # requests per day without Auto-Assist
 API_QUOTA_PREMIUM: Final = 20000  # requests per day with Auto-Assist
+API_CALLS_PER_UPDATE: Final = 3  # get_rooms + get_rooms_and_devices + get_home_state
+
+# Config keys for options
+CONF_SCAN_INTERVAL: Final = "scan_interval"
 
 # Device types
 DEVICE_TYPE_VALVE: Final = "VA04"  # Tado X Radiator Valve

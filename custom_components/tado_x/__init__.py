@@ -17,9 +17,13 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import TadoXApi, TadoXApiError, TadoXAuthError
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_API_CALLS_TODAY,
+    CONF_API_RESET_TIME,
+    CONF_HAS_AUTO_ASSIST,
     CONF_HOME_ID,
     CONF_HOME_NAME,
     CONF_REFRESH_TOKEN,
+    CONF_SCAN_INTERVAL,
     CONF_TOKEN_EXPIRY,
     DOMAIN,
     PLATFORMS,
@@ -69,21 +73,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except (ValueError, TypeError):
             pass
 
-    api = TadoXApi(
-        session=session,
-        access_token=entry.data.get(CONF_ACCESS_TOKEN),
-        refresh_token=entry.data.get(CONF_REFRESH_TOKEN),
-        token_expiry=token_expiry,
-    )
+    # Parse API reset time for persistence
+    api_reset_time = None
+    if entry.data.get(CONF_API_RESET_TIME):
+        try:
+            api_reset_time = datetime.fromisoformat(entry.data[CONF_API_RESET_TIME])
+        except (ValueError, TypeError):
+            pass
 
-    home_id = entry.data[CONF_HOME_ID]
-    home_name = entry.data.get(CONF_HOME_NAME, f"Tado Home {home_id}")
+    # Create a mutable container for the API reference (needed for callback closure)
+    api_container: dict[str, TadoXApi] = {}
 
-    # Test the connection and refresh token if needed
-    try:
-        await api.refresh_access_token()
-
-        # Update stored tokens
+    def save_tokens() -> None:
+        """Save tokens to config entry after refresh to prevent auth loss on restart."""
+        if "api" not in api_container:
+            return
+        api = api_container["api"]
         hass.config_entries.async_update_entry(
             entry,
             data={
@@ -93,9 +98,58 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 CONF_TOKEN_EXPIRY: api.token_expiry.isoformat() if api.token_expiry else None,
             },
         )
+        _LOGGER.debug("Tokens persisted to config entry")
+
+    api = TadoXApi(
+        session=session,
+        access_token=entry.data.get(CONF_ACCESS_TOKEN),
+        refresh_token=entry.data.get(CONF_REFRESH_TOKEN),
+        token_expiry=token_expiry,
+        api_calls_today=entry.data.get(CONF_API_CALLS_TODAY, 0),
+        api_reset_time=api_reset_time,
+        has_auto_assist=entry.data.get(CONF_HAS_AUTO_ASSIST, False),
+        on_token_refresh=save_tokens,
+    )
+    api_container["api"] = api
+
+    home_id = entry.data[CONF_HOME_ID]
+    home_name = entry.data.get(CONF_HOME_NAME, f"Tado Home {home_id}")
+
+    # Test the connection and refresh token if needed
+    try:
+        await api.refresh_access_token()
+
+        # Update stored tokens and API call stats
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                CONF_ACCESS_TOKEN: api.access_token,
+                CONF_REFRESH_TOKEN: api.refresh_token,
+                CONF_TOKEN_EXPIRY: api.token_expiry.isoformat() if api.token_expiry else None,
+                CONF_API_CALLS_TODAY: api.api_calls_today,
+                CONF_API_RESET_TIME: api.api_reset_time.isoformat(),
+                CONF_HAS_AUTO_ASSIST: api.has_auto_assist,
+            },
+        )
     except TadoXAuthError as err:
         _LOGGER.error("Authentication failed: %s", err)
         raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
+
+    # Create callback to save API stats periodically
+    def save_api_stats() -> None:
+        """Save API call statistics to config entry."""
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                CONF_API_CALLS_TODAY: api.api_calls_today,
+                CONF_API_RESET_TIME: api.api_reset_time.isoformat(),
+            },
+        )
+
+    # Get configured scan interval (or None to use auto-detection based on tier)
+    configured_scan_interval = entry.data.get(CONF_SCAN_INTERVAL)
 
     # Create coordinator
     coordinator = TadoXDataUpdateCoordinator(
@@ -103,6 +157,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api=api,
         home_id=home_id,
         home_name=home_name,
+        save_api_stats_callback=save_api_stats,
+        scan_interval=configured_scan_interval if configured_scan_interval else None,
     )
 
     # Fetch initial data

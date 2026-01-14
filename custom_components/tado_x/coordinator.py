@@ -3,14 +3,17 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import timedelta
-from typing import Any
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, Callable
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import TadoXApi, TadoXApiError, TadoXAuthError
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import DOMAIN, SCAN_INTERVAL_AUTO_ASSIST, SCAN_INTERVAL_FREE_TIER
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +70,7 @@ class TadoXData:
     presence_locked: bool = False  # Whether presence is manually set
     api_calls_today: int = 0
     api_reset_time: datetime | None = None
+    has_auto_assist: bool = False
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -78,18 +82,41 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         api: TadoXApi,
         home_id: int,
         home_name: str,
+        save_api_stats_callback: Callable[[], None] | None = None,
+        scan_interval: int | None = None,
     ) -> None:
         """Initialize the coordinator."""
+        # Determine scan interval based on subscription tier if not explicitly set
+        if scan_interval is None:
+            scan_interval = (
+                SCAN_INTERVAL_AUTO_ASSIST if api.has_auto_assist
+                else SCAN_INTERVAL_FREE_TIER
+            )
+
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            update_interval=timedelta(seconds=scan_interval),
         )
         self.api = api
         self.home_id = home_id
         self.home_name = home_name
         self.api.home_id = home_id
+        self._save_api_stats_callback = save_api_stats_callback
+        self._scan_interval = scan_interval
+
+        _LOGGER.info(
+            "Tado X coordinator initialized with %d second update interval (%s tier)",
+            scan_interval,
+            "Auto-Assist" if api.has_auto_assist else "Free"
+        )
+
+    def update_scan_interval(self, new_interval: int) -> None:
+        """Update the scan interval dynamically."""
+        self._scan_interval = new_interval
+        self.update_interval = timedelta(seconds=new_interval)
+        _LOGGER.info("Scan interval updated to %d seconds", new_interval)
 
     async def _async_update_data(self) -> TadoXData:
         """Fetch data from Tado X API."""
@@ -257,6 +284,11 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             # Populate API stats
             data.api_calls_today = self.api.api_calls_today
             data.api_reset_time = self.api.api_reset_time
+            data.has_auto_assist = self.api.has_auto_assist
+
+            # Save API stats for persistence
+            if self._save_api_stats_callback:
+                self._save_api_stats_callback()
 
             return data
 

@@ -70,14 +70,25 @@ These sensors are especially useful for free tier users to avoid hitting the 100
 | TR04 | Thermostat X |
 | IB02 | Bridge X |
 
-## API Rate Limits
+## API Rate Limits & Smart Polling
 
-| Subscription | Daily Limit |
-|--------------|-------------|
-| Without Auto-Assist | 100 requests/day |
-| With Auto-Assist | 20,000 requests/day |
+Tado enforces daily API limits. This integration **automatically adapts** its polling interval based on your subscription:
 
-The integration polls every 30 seconds (~2,880 requests/day). Without Auto-Assist, consider increasing the polling interval.
+| Subscription | Daily Limit | Auto Polling Interval | Actual Usage |
+|--------------|-------------|----------------------|--------------|
+| Without Auto-Assist | 100 requests/day | Every 45 minutes | ~96 req/day ✅ |
+| With Auto-Assist | 20,000 requests/day | Every 30 seconds | ~2,880 req/day ✅ |
+
+### Configuration Options
+
+Go to **Settings** → **Devices & Services** → **Tado X** → **⚙️ Configure** to:
+
+- **Enable Auto-Assist**: Toggle if you have an Auto-Assist subscription
+- **Custom polling interval**: Override the automatic interval (30s - 3600s)
+
+### API Counter Persistence
+
+The API call counter is **persisted across restarts** - your quota tracking continues accurately even after Home Assistant reboots.
 
 ## Troubleshooting
 
@@ -120,6 +131,9 @@ Want to contribute code? Great! Here's how to get started:
 - [x] Temperature offset adjustment service - [Issue #3](https://github.com/exabird/ha-tado-x/issues/3) ✅ v1.1.0
 - [x] API usage monitoring sensors - [Issue #4](https://github.com/exabird/ha-tado-x/issues/4) ✅ v1.3.0
 - [x] Meter reading service (Energy IQ) - [Issue #5](https://github.com/exabird/ha-tado-x/issues/5) ✅ v1.2.0
+- [x] Smart polling based on subscription tier - [Issue #4](https://github.com/exabird/ha-tado-x/issues/4) ✅ v1.3.2
+- [x] API counter persistence across restarts ✅ v1.3.2
+- [x] Configurable polling interval ✅ v1.3.2
 
 **Planned features based on community feedback:**
 - [ ] Open window detection toggle
