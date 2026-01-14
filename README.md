@@ -34,9 +34,9 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 | Entity Type | Features |
 |-------------|----------|
 | **Climate** | Temperature control, HVAC modes (Heat/Off/Auto), Preset modes (Schedule/Boost/Home/Away/Auto) |
-| **Sensors** | Temperature, Humidity, Heating power, Battery status |
+| **Sensors** | Temperature, Humidity, Heating power, Battery status, **API usage monitoring** (calls today, quota remaining, usage %, reset time) |
 | **Binary Sensors** | Window open, Heating active, Manual control, Connectivity, Low battery |
-| **Services** | Temperature offset calibration |
+| **Services** | Temperature offset calibration, **Meter reading upload** (Energy IQ) |
 
 ### Climate Presets
 
@@ -49,6 +49,17 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 ### Services
 
 - **set_temperature_offset**: Calibrate device temperature readings (-9.9°C to +9.9°C)
+- **add_meter_reading**: Upload meter readings to Tado Energy IQ (requires Energy IQ subscription)
+
+### API Usage Monitoring
+
+Four new sensors help you track API quota usage:
+- **API calls today**: Number of API requests since midnight
+- **API quota remaining**: Remaining requests (100/day free, 20,000/day with Auto-Assist)
+- **API usage**: Percentage of daily quota used
+- **API reset time**: When the quota resets (midnight)
+
+These sensors are especially useful for free tier users to avoid hitting the 100 requests/day limit.
 
 ## Supported Devices
 
@@ -104,11 +115,13 @@ Want to contribute code? Great! Here's how to get started:
 
 ### Roadmap
 
-Implemented features:
+**Recently Implemented:**
 - [x] Away preset (geofencing) - [Issue #2](https://github.com/exabird/ha-tado-x/issues/2) ✅ v1.1.0
 - [x] Temperature offset adjustment service - [Issue #3](https://github.com/exabird/ha-tado-x/issues/3) ✅ v1.1.0
+- [x] API usage monitoring sensors - [Issue #4](https://github.com/exabird/ha-tado-x/issues/4) ✅ v1.3.0
+- [x] Meter reading service (Energy IQ) - [Issue #5](https://github.com/exabird/ha-tado-x/issues/5) ✅ v1.2.0
 
-Planned features based on community feedback:
+**Planned features based on community feedback:**
 - [ ] Open window detection toggle
 - [ ] Child lock control
 
