@@ -12,6 +12,7 @@ import ssl
 from .const import (
     TADO_AUTH_URL,
     TADO_CLIENT_ID,
+    TADO_EIQ_API_URL,
     TADO_HOPS_API_URL,
     TADO_MY_API_URL,
     TADO_TOKEN_URL,
@@ -562,6 +563,6 @@ class TadoXApi:
 
         await self._request(
             "POST",
-            f"{TADO_MY_API_URL}/homes/{self._home_id}/eiqMeterReadings",
+            f"{TADO_EIQ_API_URL}/homes/{self._home_id}/meterReadings",
             json_data={"date": reading_date, "reading": reading},
         )
