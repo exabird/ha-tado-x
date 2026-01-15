@@ -36,6 +36,7 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 | **Climate** | Temperature control, HVAC modes (Heat/Off/Auto), Preset modes (Schedule/Boost/Home/Away/Auto) |
 | **Sensors** | Temperature, Humidity, Heating power, Battery status, **API usage monitoring** (calls today, quota remaining, usage %, reset time) |
 | **Binary Sensors** | Window open, Heating active, Manual control, Connectivity, Low battery |
+| **Switches** | **Child lock** (per device), **Open window** control (per room) |
 | **Services** | Temperature offset calibration, **Meter reading upload** (Energy IQ) |
 
 ### Climate Presets
@@ -137,10 +138,10 @@ Want to contribute code? Great! Here's how to get started:
 - [x] Configurable polling interval ✅ v1.3.2
 - [x] Real API quota values from response headers ✅ v1.3.3
 - [x] Fix meter reading API endpoint - [Issue #7](https://github.com/exabird/ha-tado-x/issues/7) ✅ v1.3.4
+- [x] Open window detection toggle ✅ v1.4.0
+- [x] Child lock control ✅ v1.4.0
 
 **Planned features based on community feedback:**
-- [ ] Open window detection toggle
-- [ ] Child lock control
 
 See [all feature requests](https://github.com/exabird/ha-tado-x/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement) for the full list.
 

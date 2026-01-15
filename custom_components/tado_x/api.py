@@ -566,3 +566,19 @@ class TadoXApi:
             f"{TADO_EIQ_API_URL}/homes/{self._home_id}/meterReadings",
             json_data={"date": reading_date, "reading": reading},
         )
+
+    async def set_child_lock(self, device_serial: str, enabled: bool) -> None:
+        """Enable or disable child lock on a device.
+
+        Args:
+            device_serial: Serial number of the device
+            enabled: True to enable child lock, False to disable
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "PATCH",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/roomsAndDevices/devices/{device_serial}",
+            json_data={"childLockEnabled": enabled},
+        )

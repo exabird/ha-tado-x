@@ -152,6 +152,14 @@
       "battery_low": {
         "name": "Battery Low"
       }
+    },
+    "switch": {
+      "child_lock": {
+        "name": "Child Lock"
+      },
+      "open_window": {
+        "name": "Open Window"
+      }
     }
   }
 }
