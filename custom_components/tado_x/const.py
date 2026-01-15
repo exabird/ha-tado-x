@@ -8,6 +8,7 @@ TADO_AUTH_URL: Final = "https://login.tado.com/oauth2/device_authorize"
 TADO_TOKEN_URL: Final = "https://login.tado.com/oauth2/token"
 TADO_HOPS_API_URL: Final = "https://hops.tado.com"
 TADO_MY_API_URL: Final = "https://my.tado.com/api/v2"
+TADO_EIQ_API_URL: Final = "https://energy-insights.tado.com/api"
 
 # OAuth2 Client ID (public client for device linking)
 TADO_CLIENT_ID: Final = "1bb50063-6b0c-4d11-bd99-387f4a91cc46"
