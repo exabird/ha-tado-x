@@ -48,11 +48,21 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 - **Away**: Manually set presence to Away (override geofencing)
 - **Auto (Geofencing)**: Enable automatic presence detection
 
+### Quick Actions (Buttons)
+
+Home-level controls for managing all zones at once:
+- **Boost All**: Activate boost mode on all heating zones simultaneously
+- **Turn Off All**: Disable heating in all zones (useful when leaving)
+- **Resume Schedules**: Cancel all manual overrides and return to smart schedules
+
 ### Services
 
 - **set_temperature_offset**: Calibrate device temperature readings (-9.9°C to +9.9°C)
 - **add_meter_reading**: Upload meter readings to Tado Energy IQ
 - **set_eiq_tariff**: Set energy tariffs for cost calculations in Energy IQ
+  - Supports both m³ (gas) and kWh (electricity) units
+  - Define tariff periods with start/end dates
+  - Enables accurate cost tracking in Tado's Energy IQ dashboard
 
 ### API Usage Monitoring
 
@@ -145,9 +155,20 @@ Want to contribute code? Great! Here's how to get started:
 - [x] Quick actions (Boost All, Turn Off All, Resume Schedules) ✅ v1.5.0
 - [x] Energy IQ tariff management ✅ v1.5.0
 
-**Planned features based on community feedback:**
+**Planned features:**
 
-See [all feature requests](https://github.com/exabird/ha-tado-x/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement) for the full list.
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| **Air Comfort** | Air quality, freshness level, and comfort score sensors | High |
+| **Weather Integration** | External temperature and weather conditions from Tado | High |
+| **Running Times** | Heating runtime statistics per zone (daily/weekly) | Medium |
+| **Historic Data** | Historical temperature, humidity, and heating data | Medium |
+| **Schedule Management** | Read and modify heating schedules from Home Assistant | Medium |
+| **Flow Temperature Optimization** | Boiler flow temperature control for energy savings | Low |
+| **Away Radius Configuration** | Configure geofencing radius for presence detection | Low |
+| **Mobile Devices** | View registered mobile devices used for geofencing | Low |
+
+See [all feature requests](https://github.com/exabird/ha-tado-x/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement) for the full list and to vote on priorities.
 
 ## Why This Integration Exists
 
