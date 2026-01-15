@@ -132,6 +132,9 @@
       "heating_power": {
         "name": "Heating Power"
       },
+      "heating_time_today": {
+        "name": "Heating Time Today"
+      },
       "battery": {
         "name": "Battery",
         "state": {
@@ -156,6 +159,45 @@
       },
       "api_reset_time": {
         "name": "API reset time"
+      },
+      "outdoor_temperature": {
+        "name": "Outdoor Temperature"
+      },
+      "solar_intensity": {
+        "name": "Solar Intensity"
+      },
+      "weather_state": {
+        "name": "Weather State",
+        "state": {
+          "SUNNY": "Sunny",
+          "CLOUDY": "Cloudy",
+          "CLOUDY_PARTLY": "Partly Cloudy",
+          "CLOUDY_MOSTLY": "Mostly Cloudy",
+          "NIGHT_CLEAR": "Clear Night",
+          "NIGHT_CLOUDY": "Cloudy Night",
+          "RAIN": "Rain",
+          "DRIZZLE": "Drizzle",
+          "SNOW": "Snow",
+          "FOGGY": "Foggy",
+          "THUNDERSTORMS": "Thunderstorms",
+          "WINDY": "Windy"
+        }
+      },
+      "air_freshness": {
+        "name": "Air Freshness",
+        "state": {
+          "fresh": "Fresh",
+          "fair": "Fair",
+          "stale": "Stale"
+        }
+      },
+      "comfort_level": {
+        "name": "Comfort Level",
+        "state": {
+          "cold": "Cold",
+          "comfy": "Comfortable",
+          "hot": "Hot"
+        }
       }
     },
     "binary_sensor": {
@@ -192,6 +234,37 @@
       },
       "resume_schedules": {
         "name": "Resume Schedules"
+      }
+    },
+    "device_tracker": {
+      "mobile_device": {
+        "name": "Mobile Device",
+        "state": {
+          "home": "Home",
+          "away": "Away",
+          "not_tracking": "Not Tracking",
+          "unknown": "Unknown"
+        },
+        "state_attributes": {
+          "geofencing_enabled": {
+            "name": "Geofencing Enabled"
+          },
+          "at_home": {
+            "name": "At Home"
+          },
+          "platform": {
+            "name": "Platform"
+          },
+          "os_version": {
+            "name": "OS Version"
+          },
+          "model": {
+            "name": "Model"
+          },
+          "locale": {
+            "name": "Locale"
+          }
+        }
       }
     }
   }

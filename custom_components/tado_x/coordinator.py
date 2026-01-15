@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
 from homeassistant.core import HomeAssistant
@@ -55,6 +55,38 @@ class TadoXRoom:
     next_schedule_change: str | None = None
     next_schedule_temperature: float | None = None
     devices: list[TadoXDevice] = field(default_factory=list)
+    # Running times data (heating duration today)
+    running_time_today_seconds: int = 0
+
+
+@dataclass
+class TadoXWeather:
+    """Representation of Tado weather data."""
+
+    outdoor_temperature: float | None = None
+    solar_intensity: float | None = None
+    weather_state: str | None = None
+
+
+@dataclass
+class TadoXMobileDevice:
+    """Representation of a Tado mobile device for geofencing."""
+
+    device_id: int
+    name: str
+    device_metadata: dict = field(default_factory=dict)
+    location: str | None = None  # "HOME", "AWAY", or None if location not available
+    at_home: bool = False
+    geofencing_enabled: bool = False
+
+
+@dataclass
+class TadoXRoomAirComfort:
+    """Air comfort data for a room."""
+
+    room_id: int
+    freshness: str | None = None  # FRESH, FAIR, STALE
+    comfort_level: str | None = None  # Based on temperature/humidity
 
 
 @dataclass
@@ -74,6 +106,14 @@ class TadoXData:
     # Real values from Tado API response headers
     api_quota_limit: int | None = None  # From ratelimit-policy header (q=)
     api_quota_remaining: int | None = None  # From ratelimit header (r=)
+    # Weather data
+    weather: TadoXWeather | None = None
+    # Mobile devices for geofencing
+    mobile_devices: dict[int, TadoXMobileDevice] = field(default_factory=dict)
+    # Running times data (raw response for additional processing if needed)
+    running_times: dict[str, Any] = field(default_factory=dict)
+    # Air comfort data per room
+    air_comfort: dict[int, TadoXRoomAirComfort] = field(default_factory=dict)
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -135,12 +175,28 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             presence = home_state.get("presence")
             presence_locked = home_state.get("presenceLocked", False)
 
+            # Get weather data
+            weather_data = await self.api.get_weather()
+            outdoor_temp_data = weather_data.get("outsideTemperature") or {}
+            solar_data = weather_data.get("solarIntensity") or {}
+            weather_state_data = weather_data.get("weatherState") or {}
+
+            weather = TadoXWeather(
+                outdoor_temperature=outdoor_temp_data.get("celsius"),
+                solar_intensity=solar_data.get("percentage"),
+                weather_state=weather_state_data.get("value"),
+            )
+
+            # Get mobile devices for geofencing
+            mobile_devices_data = await self.api.get_mobile_devices()
+
             # Process the data
             data = TadoXData(
                 home_id=self.home_id,
                 home_name=self.home_name,
                 presence=presence,
                 presence_locked=presence_locked,
+                weather=weather,
             )
 
             # Process rooms and devices
@@ -283,6 +339,82 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
 
                 data.other_devices.append(device)
                 data.devices[device.serial_number] = device
+
+            # Process mobile devices
+            for mobile_data in mobile_devices_data:
+                device_id = mobile_data.get("id")
+                if not device_id:
+                    continue
+
+                # Get location info
+                location_data = mobile_data.get("location") or {}
+                settings_data = mobile_data.get("settings") or {}
+                geo_tracking = settings_data.get("geoTrackingEnabled", False)
+
+                # Determine if at home based on location
+                at_home = location_data.get("atHome", False)
+                location_state = "HOME" if at_home else "AWAY" if location_data else None
+
+                mobile_device = TadoXMobileDevice(
+                    device_id=device_id,
+                    name=mobile_data.get("name", f"Mobile {device_id}"),
+                    device_metadata=mobile_data.get("deviceMetadata", {}),
+                    location=location_state,
+                    at_home=at_home,
+                    geofencing_enabled=geo_tracking,
+                )
+                data.mobile_devices[device_id] = mobile_device
+
+            # Fetch running times data for today
+            try:
+                today = date.today().isoformat()
+                running_times_data = await self.api.get_running_times(today, today)
+                data.running_times = running_times_data
+
+                # Process running times per zone/room
+                # The API returns running times with zone IDs that correspond to room IDs
+                running_times_list = running_times_data.get("runningTimes", [])
+                for rt_entry in running_times_list:
+                    zones = rt_entry.get("zones", [])
+                    for zone_data in zones:
+                        zone_id = zone_data.get("id")
+                        zone_running_seconds = zone_data.get("runningTimeInSeconds", 0)
+                        if zone_id and zone_id in data.rooms:
+                            data.rooms[zone_id].running_time_today_seconds = zone_running_seconds
+
+                _LOGGER.debug("Running times fetched: %s zones", len(running_times_list))
+            except Exception as err:
+                # Running times endpoint might not be available for all accounts
+                # Log warning but don't fail the entire update
+                _LOGGER.warning("Failed to fetch running times data: %s", err)
+                data.running_times = {}
+
+            # Fetch air comfort data
+            try:
+                air_comfort_data = await self.api.get_air_comfort()
+                comfort_list = air_comfort_data.get("comfort", [])
+                for comfort_entry in comfort_list:
+                    room_id = comfort_entry.get("roomId")
+                    if room_id:
+                        # Get humidity freshness (FRESH, FAIR, STALE)
+                        humidity_data = comfort_entry.get("humidity") or {}
+                        freshness = humidity_data.get("humidityLevel")
+
+                        # Get temperature comfort level
+                        temperature_data = comfort_entry.get("temperature") or {}
+                        comfort_level = temperature_data.get("temperatureLevel")
+
+                        room_air_comfort = TadoXRoomAirComfort(
+                            room_id=room_id,
+                            freshness=freshness,
+                            comfort_level=comfort_level,
+                        )
+                        data.air_comfort[room_id] = room_air_comfort
+
+                _LOGGER.debug("Air comfort fetched for %d rooms", len(data.air_comfort))
+            except Exception as err:
+                # Air comfort endpoint might not be available for all accounts
+                _LOGGER.warning("Failed to fetch air comfort data: %s", err)
 
             # Populate API stats (prefer real values from headers when available)
             data.api_calls_today = self.api.api_calls_today

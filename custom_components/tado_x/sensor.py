@@ -13,14 +13,21 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import API_QUOTA_FREE_TIER, API_QUOTA_PREMIUM, DOMAIN
-from .coordinator import TadoXData, TadoXDataUpdateCoordinator, TadoXDevice, TadoXRoom
+from .coordinator import (
+    TadoXData,
+    TadoXDataUpdateCoordinator,
+    TadoXDevice,
+    TadoXRoom,
+    TadoXRoomAirComfort,
+    TadoXWeather,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,6 +73,26 @@ class TadoXHomeSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[TadoXData], Any]
 
 
+@dataclass(frozen=True, kw_only=True)
+class TadoXWeatherSensorEntityDescription(SensorEntityDescription):
+    """Describes a Tado X weather sensor entity."""
+
+    value_fn: Callable[[TadoXWeather], Any]
+
+
+@dataclass(frozen=True, kw_only=True)
+class TadoXAirComfortSensorEntityDescription(SensorEntityDescription):
+    """Describes a Tado X air comfort sensor entity."""
+
+    value_fn: Callable[[TadoXRoomAirComfort], Any]
+
+
+def _format_running_time_hours(room: TadoXRoom) -> float:
+    """Convert running time seconds to hours with one decimal."""
+    seconds = room.running_time_today_seconds
+    return round(seconds / 3600, 1)
+
+
 ROOM_SENSORS: tuple[TadoXRoomSensorEntityDescription, ...] = (
     TadoXRoomSensorEntityDescription(
         key="temperature",
@@ -90,6 +117,15 @@ ROOM_SENSORS: tuple[TadoXRoomSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:radiator",
         value_fn=lambda room: room.heating_power,
+    ),
+    TadoXRoomSensorEntityDescription(
+        key="heating_time_today",
+        translation_key="heating_time_today",
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.TOTAL,
+        icon="mdi:clock-time-four",
+        value_fn=_format_running_time_hours,
     ),
 )
 
@@ -182,6 +218,52 @@ HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
     ),
 )
 
+WEATHER_SENSORS: tuple[TadoXWeatherSensorEntityDescription, ...] = (
+    TadoXWeatherSensorEntityDescription(
+        key="outdoor_temperature",
+        translation_key="outdoor_temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda weather: weather.outdoor_temperature,
+    ),
+    TadoXWeatherSensorEntityDescription(
+        key="solar_intensity",
+        translation_key="solar_intensity",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:white-balance-sunny",
+        value_fn=lambda weather: weather.solar_intensity,
+    ),
+    TadoXWeatherSensorEntityDescription(
+        key="weather_state",
+        translation_key="weather_state",
+        device_class=SensorDeviceClass.ENUM,
+        options=["SUNNY", "CLOUDY", "CLOUDY_PARTLY", "CLOUDY_MOSTLY", "NIGHT_CLEAR", "NIGHT_CLOUDY", "RAIN", "DRIZZLE", "SNOW", "FOGGY", "THUNDERSTORMS", "WINDY"],
+        icon="mdi:weather-partly-cloudy",
+        value_fn=lambda weather: weather.weather_state,
+    ),
+)
+
+AIR_COMFORT_SENSORS: tuple[TadoXAirComfortSensorEntityDescription, ...] = (
+    TadoXAirComfortSensorEntityDescription(
+        key="air_freshness",
+        translation_key="air_freshness",
+        device_class=SensorDeviceClass.ENUM,
+        options=["fresh", "fair", "stale"],
+        icon="mdi:air-filter",
+        value_fn=lambda ac: ac.freshness.lower() if ac.freshness else None,
+    ),
+    TadoXAirComfortSensorEntityDescription(
+        key="comfort_level",
+        translation_key="comfort_level",
+        device_class=SensorDeviceClass.ENUM,
+        options=["cold", "comfy", "hot"],
+        icon="mdi:thermometer-lines",
+        value_fn=lambda ac: ac.comfort_level.lower() if ac.comfort_level else None,
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -197,6 +279,10 @@ async def async_setup_entry(
     for description in HOME_SENSORS:
         entities.append(TadoXHomeSensor(coordinator, description))
 
+    # Add weather sensors
+    for description in WEATHER_SENSORS:
+        entities.append(TadoXWeatherSensor(coordinator, description))
+
     # Add room sensors
     for room_id in coordinator.data.rooms:
         for description in ROOM_SENSORS:
@@ -210,6 +296,11 @@ async def async_setup_entry(
                 if description.key == "device_temperature" and device.temperature_measured is None:
                     continue
                 entities.append(TadoXDeviceSensor(coordinator, device.serial_number, description))
+
+    # Add air comfort sensors (per room)
+    for room_id in coordinator.data.rooms:
+        for description in AIR_COMFORT_SENSORS:
+            entities.append(TadoXAirComfortSensor(coordinator, room_id, description))
 
     async_add_entities(entities)
 
@@ -244,6 +335,46 @@ class TadoXHomeSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEntit
     def native_value(self) -> Any:
         """Return the sensor value."""
         return self.entity_description.value_fn(self.coordinator.data)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.async_write_ha_state()
+
+
+class TadoXWeatherSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEntity):
+    """Tado X weather sensor entity."""
+
+    _attr_has_entity_name = True
+    entity_description: TadoXWeatherSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: TadoXDataUpdateCoordinator,
+        description: TadoXWeatherSensorEntityDescription,
+    ) -> None:
+        """Initialize weather sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.data.home_id}_weather_{description.key}"
+        self._attr_name = description.key.replace("_", " ").title()
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, str(self.coordinator.data.home_id))},
+            name=f"{self.coordinator.data.home_name} Home",
+            manufacturer="Tado",
+        )
+
+    @property
+    def native_value(self) -> Any:
+        """Return the sensor value."""
+        weather = self.coordinator.data.weather
+        if not weather:
+            return None
+        return self.entity_description.value_fn(weather)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -397,6 +528,63 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
         if not device:
             return None
         return self.entity_description.value_fn(device)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.async_write_ha_state()
+
+
+class TadoXAirComfortSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEntity):
+    """Tado X air comfort sensor entity."""
+
+    _attr_has_entity_name = True
+    entity_description: TadoXAirComfortSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: TadoXDataUpdateCoordinator,
+        room_id: int,
+        description: TadoXAirComfortSensorEntityDescription,
+    ) -> None:
+        """Initialize the air comfort sensor entity."""
+        super().__init__(coordinator)
+        self._room_id = room_id
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.home_id}_{room_id}_{description.key}"
+        self._attr_name = description.key.replace("_", " ").title()
+
+    @property
+    def _air_comfort(self) -> TadoXRoomAirComfort | None:
+        """Get the air comfort data for this room."""
+        return self.coordinator.data.air_comfort.get(self._room_id)
+
+    @property
+    def _room(self) -> TadoXRoom | None:
+        """Get the room data."""
+        return self.coordinator.data.rooms.get(self._room_id)
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        room = self._room
+        room_name = room.name if room else f"Room {self._room_id}"
+
+        return DeviceInfo(
+            identifiers={(DOMAIN, f"{self.coordinator.home_id}_{self._room_id}")},
+            name=room_name,
+            manufacturer="Tado",
+            model="Tado X Room",
+            via_device=(DOMAIN, str(self.coordinator.home_id)),
+        )
+
+    @property
+    def native_value(self) -> Any:
+        """Return the sensor value."""
+        air_comfort = self._air_comfort
+        if not air_comfort:
+            return None
+        return self.entity_description.value_fn(air_comfort)
 
     @callback
     def _handle_coordinator_update(self) -> None:

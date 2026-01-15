@@ -49,6 +49,9 @@
       "heating_power": {
         "name": "Heating Power"
       },
+      "heating_time_today": {
+        "name": "Heating Time Today"
+      },
       "battery": {
         "name": "Battery",
         "state": {

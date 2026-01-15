@@ -14,6 +14,7 @@ from .const import (
     TADO_CLIENT_ID,
     TADO_EIQ_API_URL,
     TADO_HOPS_API_URL,
+    TADO_MINDER_API_URL,
     TADO_MY_API_URL,
     TADO_TOKEN_URL,
 )
@@ -675,3 +676,85 @@ class TadoXApi:
             "DELETE",
             f"{TADO_EIQ_API_URL}/homes/{self._home_id}/tariffs/{tariff_id}",
         )
+
+    async def get_weather(self) -> dict[str, Any]:
+        """Get weather data for the home.
+
+        Returns weather information including outdoor temperature,
+        solar intensity, and weather state.
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_MY_API_URL}/homes/{self._home_id}/weather",
+        )
+        return result if isinstance(result, dict) else {}
+
+    # Mobile Devices endpoints
+    async def get_mobile_devices(self) -> list[dict[str, Any]]:
+        """Get all mobile devices registered for geofencing.
+
+        Returns a list of mobile device dicts with location and geofencing info.
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+        result = await self._request(
+            "GET",
+            f"{TADO_MY_API_URL}/homes/{self._home_id}/mobileDevices",
+        )
+        return result if isinstance(result, list) else []
+
+    async def get_air_comfort(self) -> dict[str, Any]:
+        """Get air comfort data for all rooms.
+
+        Returns air freshness and comfort levels per room.
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/airComfort",
+        )
+        return result if isinstance(result, dict) else {}
+
+    # Running Times endpoints (Minder API)
+    async def get_running_times(self, from_date: str, to_date: str) -> dict[str, Any]:
+        """Get running times data for heating statistics.
+
+        Args:
+            from_date: Start date in YYYY-MM-DD format
+            to_date: End date in YYYY-MM-DD format
+
+        Returns:
+            Running times data per zone including heating duration.
+            Expected structure:
+            {
+                "runningTimes": [
+                    {
+                        "startTime": "2024-01-15T00:00:00Z",
+                        "endTime": "2024-01-15T23:59:59Z",
+                        "runningTimeInSeconds": 14400,
+                        "zones": [
+                            {
+                                "id": 1,
+                                "runningTimeInSeconds": 7200
+                            }
+                        ]
+                    }
+                ],
+                "summary": {
+                    "totalRunningTimeInSeconds": 14400
+                }
+            }
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_MINDER_API_URL}/homes/{self._home_id}/runningTimes?from={from_date}&to={to_date}",
+        )
+        return result if isinstance(result, dict) else {}

@@ -9,6 +9,7 @@ TADO_TOKEN_URL: Final = "https://login.tado.com/oauth2/token"
 TADO_HOPS_API_URL: Final = "https://hops.tado.com"
 TADO_MY_API_URL: Final = "https://my.tado.com/api/v2"
 TADO_EIQ_API_URL: Final = "https://energy-insights.tado.com/api"
+TADO_MINDER_API_URL: Final = "https://minder.tado.com/v1"
 
 # OAuth2 Client ID (public client for device linking)
 TADO_CLIENT_ID: Final = "1bb50063-6b0c-4d11-bd99-387f4a91cc46"
@@ -32,7 +33,7 @@ DEFAULT_SCAN_INTERVAL: Final = 30  # seconds (legacy, use tier-specific)
 # API Rate Limits
 API_QUOTA_FREE_TIER: Final = 100  # requests per day without Auto-Assist
 API_QUOTA_PREMIUM: Final = 20000  # requests per day with Auto-Assist
-API_CALLS_PER_UPDATE: Final = 3  # get_rooms + get_rooms_and_devices + get_home_state
+API_CALLS_PER_UPDATE: Final = 6  # get_rooms + get_rooms_and_devices + get_home_state + get_weather + get_mobile_devices + get_running_times
 
 # Config keys for options
 CONF_SCAN_INTERVAL: Final = "scan_interval"
@@ -65,4 +66,4 @@ CONNECTION_STATE_CONNECTED: Final = "CONNECTED"
 CONNECTION_STATE_DISCONNECTED: Final = "DISCONNECTED"
 
 # Platforms
-PLATFORMS: Final = ["climate", "sensor", "binary_sensor", "switch", "button"]
+PLATFORMS: Final = ["climate", "sensor", "binary_sensor", "switch", "button", "device_tracker"]
