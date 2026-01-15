@@ -15,6 +15,10 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import TadoXApi, TadoXAuthError
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_ENABLE_AIR_COMFORT,
+    CONF_ENABLE_MOBILE_DEVICES,
+    CONF_ENABLE_RUNNING_TIMES,
+    CONF_ENABLE_WEATHER,
     CONF_HAS_AUTO_ASSIST,
     CONF_HOME_ID,
     CONF_HOME_NAME,
@@ -265,6 +269,12 @@ class TadoXOptionsFlow(OptionsFlow):
             has_auto_assist = user_input[CONF_HAS_AUTO_ASSIST]
             custom_interval = user_input.get(CONF_SCAN_INTERVAL)
 
+            # Get feature toggles
+            enable_weather = user_input.get(CONF_ENABLE_WEATHER, has_auto_assist)
+            enable_mobile_devices = user_input.get(CONF_ENABLE_MOBILE_DEVICES, has_auto_assist)
+            enable_air_comfort = user_input.get(CONF_ENABLE_AIR_COMFORT, has_auto_assist)
+            enable_running_times = user_input.get(CONF_ENABLE_RUNNING_TIMES, has_auto_assist)
+
             # Determine scan interval: custom if set, otherwise based on tier
             if custom_interval and custom_interval > 0:
                 scan_interval = custom_interval
@@ -279,6 +289,10 @@ class TadoXOptionsFlow(OptionsFlow):
                 **self.config_entry.data,
                 CONF_HAS_AUTO_ASSIST: has_auto_assist,
                 CONF_SCAN_INTERVAL: scan_interval,
+                CONF_ENABLE_WEATHER: enable_weather,
+                CONF_ENABLE_MOBILE_DEVICES: enable_mobile_devices,
+                CONF_ENABLE_AIR_COMFORT: enable_air_comfort,
+                CONF_ENABLE_RUNNING_TIMES: enable_running_times,
             }
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
@@ -290,11 +304,24 @@ class TadoXOptionsFlow(OptionsFlow):
                 coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
                 coordinator.api.has_auto_assist = has_auto_assist
                 coordinator.update_scan_interval(scan_interval)
+                # Update feature flags
+                coordinator.enable_weather = enable_weather
+                coordinator.enable_mobile_devices = enable_mobile_devices
+                coordinator.enable_air_comfort = enable_air_comfort
+                coordinator.enable_running_times = enable_running_times
 
             return self.async_create_entry(title="", data={})
 
         current_auto_assist = self.config_entry.data.get(CONF_HAS_AUTO_ASSIST, False)
         current_interval = self.config_entry.data.get(CONF_SCAN_INTERVAL, 0)
+
+        # Feature toggles - default to True for Auto-Assist, False for free tier
+        # If already configured, use the stored value
+        default_features = current_auto_assist
+        current_enable_weather = self.config_entry.data.get(CONF_ENABLE_WEATHER, default_features)
+        current_enable_mobile_devices = self.config_entry.data.get(CONF_ENABLE_MOBILE_DEVICES, default_features)
+        current_enable_air_comfort = self.config_entry.data.get(CONF_ENABLE_AIR_COMFORT, default_features)
+        current_enable_running_times = self.config_entry.data.get(CONF_ENABLE_RUNNING_TIMES, default_features)
 
         # Suggested intervals based on tier
         default_interval = (
@@ -314,6 +341,22 @@ class TadoXOptionsFlow(OptionsFlow):
                         CONF_SCAN_INTERVAL,
                         default=current_interval if current_interval > 0 else default_interval,
                     ): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
+                    vol.Required(
+                        CONF_ENABLE_WEATHER,
+                        default=current_enable_weather,
+                    ): bool,
+                    vol.Required(
+                        CONF_ENABLE_MOBILE_DEVICES,
+                        default=current_enable_mobile_devices,
+                    ): bool,
+                    vol.Required(
+                        CONF_ENABLE_AIR_COMFORT,
+                        default=current_enable_air_comfort,
+                    ): bool,
+                    vol.Required(
+                        CONF_ENABLE_RUNNING_TIMES,
+                        default=current_enable_running_times,
+                    ): bool,
                 }
             ),
         )

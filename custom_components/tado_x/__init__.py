@@ -19,6 +19,10 @@ from .const import (
     CONF_ACCESS_TOKEN,
     CONF_API_CALLS_TODAY,
     CONF_API_RESET_TIME,
+    CONF_ENABLE_AIR_COMFORT,
+    CONF_ENABLE_MOBILE_DEVICES,
+    CONF_ENABLE_RUNNING_TIMES,
+    CONF_ENABLE_WEATHER,
     CONF_HAS_AUTO_ASSIST,
     CONF_HOME_ID,
     CONF_HOME_NAME,
@@ -166,6 +170,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Get configured scan interval (or None to use auto-detection based on tier)
     configured_scan_interval = entry.data.get(CONF_SCAN_INTERVAL)
 
+    # Get feature toggles - default based on subscription tier
+    # Auto-Assist users get all features enabled, free tier users get them disabled
+    has_auto_assist = entry.data.get(CONF_HAS_AUTO_ASSIST, False)
+    default_features = has_auto_assist
+    enable_weather = entry.data.get(CONF_ENABLE_WEATHER, default_features)
+    enable_mobile_devices = entry.data.get(CONF_ENABLE_MOBILE_DEVICES, default_features)
+    enable_air_comfort = entry.data.get(CONF_ENABLE_AIR_COMFORT, default_features)
+    enable_running_times = entry.data.get(CONF_ENABLE_RUNNING_TIMES, default_features)
+
     # Create coordinator
     coordinator = TadoXDataUpdateCoordinator(
         hass=hass,
@@ -174,6 +187,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         home_name=home_name,
         save_api_stats_callback=save_api_stats,
         scan_interval=configured_scan_interval if configured_scan_interval else None,
+        enable_weather=enable_weather,
+        enable_mobile_devices=enable_mobile_devices,
+        enable_air_comfort=enable_air_comfort,
+        enable_running_times=enable_running_times,
     )
 
     # Fetch initial data

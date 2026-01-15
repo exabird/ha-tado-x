@@ -38,6 +38,15 @@ API_CALLS_PER_UPDATE: Final = 6  # get_rooms + get_rooms_and_devices + get_home_
 # Config keys for options
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 
+# Feature toggles for optional API calls
+CONF_ENABLE_WEATHER: Final = "enable_weather"
+CONF_ENABLE_MOBILE_DEVICES: Final = "enable_mobile_devices"
+CONF_ENABLE_AIR_COMFORT: Final = "enable_air_comfort"
+CONF_ENABLE_RUNNING_TIMES: Final = "enable_running_times"
+
+# Base API calls (required): get_rooms, get_rooms_and_devices, get_home_state
+API_CALLS_BASE: Final = 3
+
 # Device types
 DEVICE_TYPE_VALVE: Final = "VA04"  # Tado X Radiator Valve
 DEVICE_TYPE_THERMOSTAT: Final = "TR04"  # Tado X Thermostat

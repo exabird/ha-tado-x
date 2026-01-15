@@ -127,6 +127,10 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         home_name: str,
         save_api_stats_callback: Callable[[], None] | None = None,
         scan_interval: int | None = None,
+        enable_weather: bool = True,
+        enable_mobile_devices: bool = True,
+        enable_air_comfort: bool = True,
+        enable_running_times: bool = True,
     ) -> None:
         """Initialize the coordinator."""
         # Determine scan interval based on subscription tier if not explicitly set
@@ -149,10 +153,20 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         self._save_api_stats_callback = save_api_stats_callback
         self._scan_interval = scan_interval
 
+        # Feature toggles for optional API calls
+        self.enable_weather = enable_weather
+        self.enable_mobile_devices = enable_mobile_devices
+        self.enable_air_comfort = enable_air_comfort
+        self.enable_running_times = enable_running_times
+
         _LOGGER.info(
             "Tado X coordinator initialized with %d second update interval (%s tier)",
             scan_interval,
             "Auto-Assist" if api.has_auto_assist else "Free"
+        )
+        _LOGGER.info(
+            "Optional features - Weather: %s, Mobile devices: %s, Air comfort: %s, Running times: %s",
+            enable_weather, enable_mobile_devices, enable_air_comfort, enable_running_times
         )
 
     def update_scan_interval(self, new_interval: int) -> None:
@@ -161,34 +175,52 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         self.update_interval = timedelta(seconds=new_interval)
         _LOGGER.info("Scan interval updated to %d seconds", new_interval)
 
+    def get_api_calls_per_update(self) -> int:
+        """Calculate the number of API calls per update based on enabled features."""
+        # Base calls: get_rooms, get_rooms_and_devices, get_home_state
+        calls = 3
+        if self.enable_weather:
+            calls += 1
+        if self.enable_mobile_devices:
+            calls += 1
+        if self.enable_air_comfort:
+            calls += 1
+        if self.enable_running_times:
+            calls += 1
+        return calls
+
     async def _async_update_data(self) -> TadoXData:
         """Fetch data from Tado X API."""
         try:
-            # Get rooms with current state
+            # Get rooms with current state (required)
             rooms_data = await self.api.get_rooms()
 
-            # Get rooms with devices
+            # Get rooms with devices (required)
             rooms_devices_data = await self.api.get_rooms_and_devices()
 
-            # Get home presence state
+            # Get home presence state (required)
             home_state = await self.api.get_home_state()
             presence = home_state.get("presence")
             presence_locked = home_state.get("presenceLocked", False)
 
-            # Get weather data
-            weather_data = await self.api.get_weather()
-            outdoor_temp_data = weather_data.get("outsideTemperature") or {}
-            solar_data = weather_data.get("solarIntensity") or {}
-            weather_state_data = weather_data.get("weatherState") or {}
+            # Get weather data (optional)
+            weather = None
+            if self.enable_weather:
+                weather_data = await self.api.get_weather()
+                outdoor_temp_data = weather_data.get("outsideTemperature") or {}
+                solar_data = weather_data.get("solarIntensity") or {}
+                weather_state_data = weather_data.get("weatherState") or {}
 
-            weather = TadoXWeather(
-                outdoor_temperature=outdoor_temp_data.get("celsius"),
-                solar_intensity=solar_data.get("percentage"),
-                weather_state=weather_state_data.get("value"),
-            )
+                weather = TadoXWeather(
+                    outdoor_temperature=outdoor_temp_data.get("celsius"),
+                    solar_intensity=solar_data.get("percentage"),
+                    weather_state=weather_state_data.get("value"),
+                )
 
-            # Get mobile devices for geofencing
-            mobile_devices_data = await self.api.get_mobile_devices()
+            # Get mobile devices for geofencing (optional)
+            mobile_devices_data = []
+            if self.enable_mobile_devices:
+                mobile_devices_data = await self.api.get_mobile_devices()
 
             # Process the data
             data = TadoXData(
@@ -365,56 +397,58 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 )
                 data.mobile_devices[device_id] = mobile_device
 
-            # Fetch running times data for today
-            try:
-                today = date.today().isoformat()
-                running_times_data = await self.api.get_running_times(today, today)
-                data.running_times = running_times_data
+            # Fetch running times data for today (optional)
+            if self.enable_running_times:
+                try:
+                    today = date.today().isoformat()
+                    running_times_data = await self.api.get_running_times(today, today)
+                    data.running_times = running_times_data
 
-                # Process running times per zone/room
-                # The API returns running times with zone IDs that correspond to room IDs
-                running_times_list = running_times_data.get("runningTimes", [])
-                for rt_entry in running_times_list:
-                    zones = rt_entry.get("zones", [])
-                    for zone_data in zones:
-                        zone_id = zone_data.get("id")
-                        zone_running_seconds = zone_data.get("runningTimeInSeconds", 0)
-                        if zone_id and zone_id in data.rooms:
-                            data.rooms[zone_id].running_time_today_seconds = zone_running_seconds
+                    # Process running times per zone/room
+                    # The API returns running times with zone IDs that correspond to room IDs
+                    running_times_list = running_times_data.get("runningTimes", [])
+                    for rt_entry in running_times_list:
+                        zones = rt_entry.get("zones", [])
+                        for zone_data in zones:
+                            zone_id = zone_data.get("id")
+                            zone_running_seconds = zone_data.get("runningTimeInSeconds", 0)
+                            if zone_id and zone_id in data.rooms:
+                                data.rooms[zone_id].running_time_today_seconds = zone_running_seconds
 
-                _LOGGER.debug("Running times fetched: %s zones", len(running_times_list))
-            except Exception as err:
-                # Running times endpoint might not be available for all accounts
-                # Log warning but don't fail the entire update
-                _LOGGER.warning("Failed to fetch running times data: %s", err)
-                data.running_times = {}
+                    _LOGGER.debug("Running times fetched: %s zones", len(running_times_list))
+                except Exception as err:
+                    # Running times endpoint might not be available for all accounts
+                    # Log warning but don't fail the entire update
+                    _LOGGER.warning("Failed to fetch running times data: %s", err)
+                    data.running_times = {}
 
-            # Fetch air comfort data
-            try:
-                air_comfort_data = await self.api.get_air_comfort()
-                comfort_list = air_comfort_data.get("comfort", [])
-                for comfort_entry in comfort_list:
-                    room_id = comfort_entry.get("roomId")
-                    if room_id:
-                        # Get humidity freshness (FRESH, FAIR, STALE)
-                        humidity_data = comfort_entry.get("humidity") or {}
-                        freshness = humidity_data.get("humidityLevel")
+            # Fetch air comfort data (optional)
+            if self.enable_air_comfort:
+                try:
+                    air_comfort_data = await self.api.get_air_comfort()
+                    comfort_list = air_comfort_data.get("comfort", [])
+                    for comfort_entry in comfort_list:
+                        room_id = comfort_entry.get("roomId")
+                        if room_id:
+                            # Get humidity freshness (FRESH, FAIR, STALE)
+                            humidity_data = comfort_entry.get("humidity") or {}
+                            freshness = humidity_data.get("humidityLevel")
 
-                        # Get temperature comfort level
-                        temperature_data = comfort_entry.get("temperature") or {}
-                        comfort_level = temperature_data.get("temperatureLevel")
+                            # Get temperature comfort level
+                            temperature_data = comfort_entry.get("temperature") or {}
+                            comfort_level = temperature_data.get("temperatureLevel")
 
-                        room_air_comfort = TadoXRoomAirComfort(
-                            room_id=room_id,
-                            freshness=freshness,
-                            comfort_level=comfort_level,
-                        )
-                        data.air_comfort[room_id] = room_air_comfort
+                            room_air_comfort = TadoXRoomAirComfort(
+                                room_id=room_id,
+                                freshness=freshness,
+                                comfort_level=comfort_level,
+                            )
+                            data.air_comfort[room_id] = room_air_comfort
 
-                _LOGGER.debug("Air comfort fetched for %d rooms", len(data.air_comfort))
-            except Exception as err:
-                # Air comfort endpoint might not be available for all accounts
-                _LOGGER.warning("Failed to fetch air comfort data: %s", err)
+                    _LOGGER.debug("Air comfort fetched for %d rooms", len(data.air_comfort))
+                except Exception as err:
+                    # Air comfort endpoint might not be available for all accounts
+                    _LOGGER.warning("Failed to fetch air comfort data: %s", err)
 
             # Populate API stats (prefer real values from headers when available)
             data.api_calls_today = self.api.api_calls_today
