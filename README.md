@@ -34,10 +34,11 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 | Entity Type | Features |
 |-------------|----------|
 | **Climate** | Temperature control, HVAC modes (Heat/Off/Auto), Preset modes (Schedule/Boost/Home/Away/Auto) |
-| **Sensors** | Temperature, Humidity, Heating power, Battery status, **API usage monitoring** (calls today, quota remaining, usage %, reset time) |
+| **Sensors** | Temperature, Humidity, Heating power, Battery status, **API usage monitoring**, **Weather** (outdoor temp, solar intensity), **Air comfort** (freshness, comfort level), **Heating time today** |
 | **Binary Sensors** | Window open, Heating active, Manual control, Connectivity, Low battery |
 | **Switches** | **Child lock** (per device), **Open window** control (per room) |
 | **Buttons** | **Boost All**, **Turn Off All**, **Resume Schedules** (quick actions) |
+| **Device Tracker** | **Mobile devices** for geofencing (home/away status) |
 | **Services** | Temperature offset, Meter reading, **Energy tariff** (Energy IQ) |
 
 ### Climate Presets
@@ -99,6 +100,12 @@ Go to **Settings** → **Devices & Services** → **Tado X** → **⚙️ Config
 
 - **Enable Auto-Assist**: Toggle if you have an Auto-Assist subscription
 - **Custom polling interval**: Override the automatic interval (30s - 3600s)
+- **Enable weather sensors**: Outdoor temperature, solar intensity, weather state (+1 API call)
+- **Enable mobile device tracking**: Device tracker for geofencing (+1 API call)
+- **Enable air comfort sensors**: Air freshness and comfort level per room (+1 API call)
+- **Enable heating time sensors**: Daily heating runtime per room (+1 API call)
+
+**Note:** Optional features are disabled by default for free tier users to optimize API usage. Auto-Assist users have all features enabled by default.
 
 ### API Counter Persistence
 
@@ -154,19 +161,20 @@ Want to contribute code? Great! Here's how to get started:
 - [x] Child lock control ✅ v1.4.0
 - [x] Quick actions (Boost All, Turn Off All, Resume Schedules) ✅ v1.5.0
 - [x] Energy IQ tariff management ✅ v1.5.0
+- [x] Weather sensors (outdoor temp, solar intensity, weather state) ✅ v1.6.0
+- [x] Air comfort sensors (freshness, comfort level per room) ✅ v1.6.0
+- [x] Mobile device tracking (geofencing home/away) ✅ v1.6.0
+- [x] Heating time sensors (daily runtime per room) ✅ v1.6.0
+- [x] Configurable feature toggles to optimize API usage ✅ v1.6.0
 
 **Planned features:**
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| **Air Comfort** | Air quality, freshness level, and comfort score sensors | High |
-| **Weather Integration** | External temperature and weather conditions from Tado | High |
-| **Running Times** | Heating runtime statistics per zone (daily/weekly) | Medium |
 | **Historic Data** | Historical temperature, humidity, and heating data | Medium |
 | **Schedule Management** | Read and modify heating schedules from Home Assistant | Medium |
 | **Flow Temperature Optimization** | Boiler flow temperature control for energy savings | Low |
 | **Away Radius Configuration** | Configure geofencing radius for presence detection | Low |
-| **Mobile Devices** | View registered mobile devices used for geofencing | Low |
 
 See [all feature requests](https://github.com/exabird/ha-tado-x/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement) for the full list and to vote on priorities.
 
