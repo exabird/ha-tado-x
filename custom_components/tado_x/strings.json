@@ -45,11 +45,19 @@
         "description": "Configure your Tado X integration settings.\n\n**API Quota:**\n- Without Auto-Assist: 100 requests/day → updates every 45 min\n- With Auto-Assist: 20,000 requests/day → updates every 30 sec",
         "data": {
           "has_auto_assist": "Auto-Assist subscription",
-          "scan_interval": "Update interval (seconds)"
+          "scan_interval": "Update interval (seconds)",
+          "enable_weather": "Enable weather sensors",
+          "enable_mobile_devices": "Enable mobile device tracking",
+          "enable_air_comfort": "Enable air comfort sensors",
+          "enable_running_times": "Enable heating time sensors"
         },
         "data_description": {
           "has_auto_assist": "Enable this if you have an Auto-Assist subscription. This will automatically adjust the update interval.",
-          "scan_interval": "How often to poll the Tado API (in seconds). Minimum: 30s, Maximum: 3600s (1 hour). Without Auto-Assist, keep at 2700s (45 min) to stay under 100 requests/day."
+          "scan_interval": "How often to poll the Tado API (in seconds). Minimum: 30s, Maximum: 3600s (1 hour). Without Auto-Assist, keep at 2700s (45 min) to stay under 100 requests/day.",
+          "enable_weather": "Enables outdoor temperature, solar intensity, and weather state sensors. Uses 1 API call per update.",
+          "enable_mobile_devices": "Enables device trackers for mobile phones with geofencing. Uses 1 API call per update.",
+          "enable_air_comfort": "Enables air freshness and comfort level sensors per room. Uses 1 API call per update.",
+          "enable_running_times": "Enables heating time today sensors per room. Uses 1 API call per update."
         }
       }
     }

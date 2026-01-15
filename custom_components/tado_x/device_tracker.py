@@ -26,9 +26,10 @@ async def async_setup_entry(
 
     entities: list[TrackerEntity] = []
 
-    # Add device trackers for each mobile device
-    for device_id in coordinator.data.mobile_devices:
-        entities.append(TadoXMobileDeviceTracker(coordinator, device_id))
+    # Add device trackers for each mobile device (only if feature is enabled)
+    if coordinator.enable_mobile_devices:
+        for device_id in coordinator.data.mobile_devices:
+            entities.append(TadoXMobileDeviceTracker(coordinator, device_id))
 
     async_add_entities(entities)
 

@@ -279,13 +279,17 @@ async def async_setup_entry(
     for description in HOME_SENSORS:
         entities.append(TadoXHomeSensor(coordinator, description))
 
-    # Add weather sensors
-    for description in WEATHER_SENSORS:
-        entities.append(TadoXWeatherSensor(coordinator, description))
+    # Add weather sensors (only if feature is enabled)
+    if coordinator.enable_weather:
+        for description in WEATHER_SENSORS:
+            entities.append(TadoXWeatherSensor(coordinator, description))
 
     # Add room sensors
     for room_id in coordinator.data.rooms:
         for description in ROOM_SENSORS:
+            # Skip heating_time_today if running times feature is disabled
+            if description.key == "heating_time_today" and not coordinator.enable_running_times:
+                continue
             entities.append(TadoXRoomSensor(coordinator, room_id, description))
 
     # Add device sensors (for devices with batteries - valves and sensors)
@@ -297,10 +301,11 @@ async def async_setup_entry(
                     continue
                 entities.append(TadoXDeviceSensor(coordinator, device.serial_number, description))
 
-    # Add air comfort sensors (per room)
-    for room_id in coordinator.data.rooms:
-        for description in AIR_COMFORT_SENSORS:
-            entities.append(TadoXAirComfortSensor(coordinator, room_id, description))
+    # Add air comfort sensors (per room) - only if feature is enabled
+    if coordinator.enable_air_comfort:
+        for room_id in coordinator.data.rooms:
+            for description in AIR_COMFORT_SENSORS:
+                entities.append(TadoXAirComfortSensor(coordinator, room_id, description))
 
     async_add_entities(entities)
 
