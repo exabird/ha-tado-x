@@ -136,6 +136,7 @@ Want to contribute code? Great! Here's how to get started:
 - [x] API counter persistence across restarts ✅ v1.3.2
 - [x] Configurable polling interval ✅ v1.3.2
 - [x] Real API quota values from response headers ✅ v1.3.3
+- [x] Fix meter reading API endpoint - [Issue #7](https://github.com/exabird/ha-tado-x/issues/7) ✅ v1.3.4
 
 **Planned features based on community feedback:**
 - [ ] Open window detection toggle
