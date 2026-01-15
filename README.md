@@ -37,7 +37,8 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 | **Sensors** | Temperature, Humidity, Heating power, Battery status, **API usage monitoring** (calls today, quota remaining, usage %, reset time) |
 | **Binary Sensors** | Window open, Heating active, Manual control, Connectivity, Low battery |
 | **Switches** | **Child lock** (per device), **Open window** control (per room) |
-| **Services** | Temperature offset calibration, **Meter reading upload** (Energy IQ) |
+| **Buttons** | **Boost All**, **Turn Off All**, **Resume Schedules** (quick actions) |
+| **Services** | Temperature offset, Meter reading, **Energy tariff** (Energy IQ) |
 
 ### Climate Presets
 
@@ -50,7 +51,8 @@ A Home Assistant custom integration for **Tado X** devices (the new generation o
 ### Services
 
 - **set_temperature_offset**: Calibrate device temperature readings (-9.9°C to +9.9°C)
-- **add_meter_reading**: Upload meter readings to Tado Energy IQ (requires Energy IQ subscription)
+- **add_meter_reading**: Upload meter readings to Tado Energy IQ
+- **set_eiq_tariff**: Set energy tariffs for cost calculations in Energy IQ
 
 ### API Usage Monitoring
 
@@ -140,6 +142,8 @@ Want to contribute code? Great! Here's how to get started:
 - [x] Fix meter reading API endpoint - [Issue #7](https://github.com/exabird/ha-tado-x/issues/7) ✅ v1.3.4
 - [x] Open window detection toggle ✅ v1.4.0
 - [x] Child lock control ✅ v1.4.0
+- [x] Quick actions (Boost All, Turn Off All, Resume Schedules) ✅ v1.5.0
+- [x] Energy IQ tariff management ✅ v1.5.0
 
 **Planned features based on community feedback:**
 

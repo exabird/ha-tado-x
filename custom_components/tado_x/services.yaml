@@ -44,3 +44,45 @@ add_meter_reading:
       example: "2026-01-14"
       selector:
         text:
+
+set_eiq_tariff:
+  name: Set energy tariff
+  description: Set an energy tariff in Tado Energy IQ for cost calculations
+  fields:
+    tariff:
+      name: Tariff
+      description: Price per unit (e.g., 0.85 for €0.85/m³)
+      required: true
+      example: 0.85
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.01
+          mode: box
+    unit:
+      name: Unit
+      description: Energy unit type
+      required: true
+      example: "m3"
+      selector:
+        select:
+          options:
+            - label: "Cubic meters (m³)"
+              value: "m3"
+            - label: "Kilowatt hours (kWh)"
+              value: "kWh"
+    start_date:
+      name: Start date
+      description: Start date for the tariff (YYYY-MM-DD format, defaults to today)
+      required: false
+      example: "2026-01-01"
+      selector:
+        text:
+    end_date:
+      name: End date
+      description: End date for the tariff (YYYY-MM-DD format, leave empty for ongoing tariff)
+      required: false
+      example: "2026-12-31"
+      selector:
+        text:

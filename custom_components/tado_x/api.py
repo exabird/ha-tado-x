@@ -582,3 +582,96 @@ class TadoXApi:
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/roomsAndDevices/devices/{device_serial}",
             json_data={"childLockEnabled": enabled},
         )
+
+    # Quick Actions
+    async def boost_all_heating(self) -> None:
+        """Boost heating in all rooms."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/quickActions/boost",
+        )
+
+    async def disable_all_heating(self) -> None:
+        """Turn off heating in all rooms."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/quickActions/allOff",
+        )
+
+    async def resume_all_schedules(self) -> None:
+        """Resume smart schedule in all rooms."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/quickActions/resumeSchedule",
+        )
+
+    # Energy IQ Tariffs
+    async def get_eiq_tariffs(self) -> list[dict]:
+        """Get Energy IQ tariff history."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_EIQ_API_URL}/homes/{self._home_id}/tariffs",
+        )
+        return result if isinstance(result, list) else []
+
+    async def set_eiq_tariff(
+        self,
+        tariff: float,
+        unit: str = "m3",
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> None:
+        """Set Energy IQ tariff.
+
+        Args:
+            tariff: Price per unit (e.g., 0.85 for €0.85/m³)
+            unit: Unit type - "m3" or "kWh"
+            start_date: Start date (YYYY-MM-DD), defaults to today
+            end_date: End date (YYYY-MM-DD), optional for ongoing tariff
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        from datetime import date as date_module
+
+        tariff_in_cents = int(tariff * 100)
+        payload: dict = {
+            "tariffInCents": tariff_in_cents,
+            "unit": unit,
+            "startDate": start_date if start_date else date_module.today().isoformat(),
+        }
+
+        if end_date:
+            payload["endDate"] = end_date
+
+        await self._request(
+            "POST",
+            f"{TADO_EIQ_API_URL}/homes/{self._home_id}/tariffs",
+            json_data=payload,
+        )
+
+    async def delete_eiq_tariff(self, tariff_id: str) -> None:
+        """Delete an Energy IQ tariff.
+
+        Args:
+            tariff_id: ID of the tariff to delete
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "DELETE",
+            f"{TADO_EIQ_API_URL}/homes/{self._home_id}/tariffs/{tariff_id}",
+        )

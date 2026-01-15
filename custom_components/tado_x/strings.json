@@ -82,6 +82,28 @@
           "description": "Date of reading (YYYY-MM-DD format, defaults to today)"
         }
       }
+    },
+    "set_eiq_tariff": {
+      "name": "Set energy tariff",
+      "description": "Set an energy tariff in Tado Energy IQ for cost calculations",
+      "fields": {
+        "tariff": {
+          "name": "Tariff",
+          "description": "Price per unit (e.g., 0.85 for €0.85/m³)"
+        },
+        "unit": {
+          "name": "Unit",
+          "description": "Energy unit type (m3 or kWh)"
+        },
+        "start_date": {
+          "name": "Start date",
+          "description": "Start date for the tariff (YYYY-MM-DD format)"
+        },
+        "end_date": {
+          "name": "End date",
+          "description": "End date for the tariff (YYYY-MM-DD format)"
+        }
+      }
     }
   },
   "entity": {
@@ -159,6 +181,17 @@
       },
       "open_window": {
         "name": "Open Window"
+      }
+    },
+    "button": {
+      "boost_all": {
+        "name": "Boost All"
+      },
+      "disable_all": {
+        "name": "Turn Off All"
+      },
+      "resume_schedules": {
+        "name": "Resume Schedules"
       }
     }
   }

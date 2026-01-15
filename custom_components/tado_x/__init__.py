@@ -42,6 +42,12 @@ SERVICE_ADD_METER_READING: Final = "add_meter_reading"
 ATTR_READING: Final = "reading"
 ATTR_DATE: Final = "date"
 
+SERVICE_SET_EIQ_TARIFF: Final = "set_eiq_tariff"
+ATTR_TARIFF: Final = "tariff"
+ATTR_UNIT: Final = "unit"
+ATTR_START_DATE: Final = "start_date"
+ATTR_END_DATE: Final = "end_date"
+
 # Service schemas
 SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA = vol.Schema(
     {
@@ -57,6 +63,15 @@ SERVICE_ADD_METER_READING_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_READING): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional(ATTR_DATE): cv.string,
+    }
+)
+
+SERVICE_SET_EIQ_TARIFF_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_TARIFF): vol.All(vol.Coerce(float), vol.Range(min=0)),
+        vol.Required(ATTR_UNIT): vol.In(["m3", "kWh"]),
+        vol.Optional(ATTR_START_DATE): cv.string,
+        vol.Optional(ATTR_END_DATE): cv.string,
     }
 )
 
@@ -248,6 +263,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SERVICE_ADD_METER_READING,
             async_add_meter_reading,
             schema=SERVICE_ADD_METER_READING_SCHEMA,
+        )
+
+    async def async_set_eiq_tariff(call: ServiceCall) -> None:
+        """Handle set_eiq_tariff service call."""
+        tariff = call.data[ATTR_TARIFF]
+        unit = call.data[ATTR_UNIT]
+        start_date = call.data.get(ATTR_START_DATE)
+        end_date = call.data.get(ATTR_END_DATE)
+
+        try:
+            await coordinator.api.set_eiq_tariff(tariff, unit, start_date, end_date)
+            _LOGGER.info("EIQ tariff %.2f %s set successfully", tariff, unit)
+        except TadoXApiError as err:
+            _LOGGER.error("Failed to set EIQ tariff: %s", err)
+            raise HomeAssistantError(f"Failed to set EIQ tariff: {err}") from err
+
+    # Register EIQ tariff service (only once per integration)
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_EIQ_TARIFF):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_EIQ_TARIFF,
+            async_set_eiq_tariff,
+            schema=SERVICE_SET_EIQ_TARIFF_SCHEMA,
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
