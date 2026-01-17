@@ -449,21 +449,19 @@ class TadoXApi:
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/rooms/{room_id}/manualControl",
         )
 
-    async def set_boost_mode(self, room_id: int | None = None) -> None:
-        """Activate boost mode for a room or all rooms."""
+    async def set_boost_mode(self) -> None:
+        """Activate boost mode for all rooms.
+
+        Note: Tado X API only supports home-wide boost, not per-room boost.
+        To boost a single room, use set_room_temperature with max temperature.
+        """
         if not self._home_id:
             raise TadoXApiError("Home ID not set")
 
-        if room_id:
-            await self._request(
-                "POST",
-                f"{TADO_HOPS_API_URL}/homes/{self._home_id}/rooms/{room_id}/boost",
-            )
-        else:
-            await self._request(
-                "POST",
-                f"{TADO_HOPS_API_URL}/homes/{self._home_id}/quickActions/boost",
-            )
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/quickActions/boost",
+        )
 
     async def resume_all_schedules(self) -> None:
         """Resume schedule for all rooms."""

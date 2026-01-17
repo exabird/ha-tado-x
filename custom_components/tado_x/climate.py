@@ -65,7 +65,7 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         | ClimateEntityFeature.TURN_ON
     )
     _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF, HVACMode.AUTO]
-    _attr_preset_modes = [PRESET_SCHEDULE, PRESET_BOOST, PRESET_HOME, PRESET_AWAY, PRESET_AUTO]
+    _attr_preset_modes = [PRESET_SCHEDULE, PRESET_HOME, PRESET_AWAY, PRESET_AUTO]
     _attr_min_temp = MIN_TEMP
     _attr_max_temp = MAX_TEMP
     _attr_target_temperature_step = TEMP_STEP
@@ -176,10 +176,6 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         if not room:
             return None
 
-        # Check boost first
-        if room.boost_mode:
-            return PRESET_BOOST
-
         # Check presence state
         presence = self.coordinator.data.presence
         presence_locked = self.coordinator.data.presence_locked
@@ -270,8 +266,6 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         """Set the preset mode."""
         if preset_mode == PRESET_SCHEDULE:
             await self.coordinator.api.resume_schedule(self._room_id)
-        elif preset_mode == PRESET_BOOST:
-            await self.coordinator.api.set_boost_mode(self._room_id)
         elif preset_mode == PRESET_HOME:
             await self.coordinator.api.set_presence_home()
         elif preset_mode == PRESET_AWAY:
