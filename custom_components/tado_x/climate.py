@@ -33,7 +33,6 @@ _LOGGER = logging.getLogger(__name__)
 PRESET_HOME = "home"
 PRESET_AWAY = "away"
 PRESET_AUTO = "auto"
-PRESET_BOOST = "boost"
 PRESET_SCHEDULE = "schedule"
 
 
