@@ -248,7 +248,7 @@ WEATHER_SENSORS: tuple[TadoXWeatherSensorEntityDescription, ...] = (
         key="weather_state",
         translation_key="weather_state",
         device_class=SensorDeviceClass.ENUM,
-        options=["SUNNY", "CLOUDY", "CLOUDY_PARTLY", "CLOUDY_MOSTLY", "NIGHT_CLEAR", "NIGHT_CLOUDY", "RAIN", "DRIZZLE", "SNOW", "FOGGY", "THUNDERSTORMS", "WINDY"],
+        options=["SUN", "SUNNY", "CLOUDY", "CLOUDY_PARTLY", "CLOUDY_MOSTLY", "SCATTERED_RAIN", "NIGHT_CLEAR", "NIGHT_CLOUDY", "RAIN", "DRIZZLE", "SNOW", "SCATTERED_SNOW", "FOGGY", "THUNDERSTORMS", "WINDY", "HAIL", "RAIN_HAIL", "RAIN_SNOW", "SCATTERED_RAIN_SNOW", "FREEZING"],
         icon="mdi:weather-partly-cloudy",
         value_fn=lambda weather: weather.weather_state,
     ),
