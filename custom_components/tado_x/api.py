@@ -777,3 +777,62 @@ class TadoXApi:
             f"{TADO_MINDER_API_URL}/homes/{self._home_id}/runningTimes?from={from_date}&to={to_date}",
         )
         return result if isinstance(result, dict) else {}
+
+    # Flow Temperature Optimization endpoints
+    async def get_flow_temperature_optimization(self) -> dict[str, Any]:
+        """Get flow temperature optimization settings.
+
+        Returns:
+            Flow temperature settings including:
+            {
+                "maxFlowTemperature": 38,
+                "maxFlowTemperatureConstraints": {
+                    "min": 20,
+                    "max": 75
+                },
+                "openThermDeviceSerialNumber": "RU0000000000",
+                "hasMultipleBoilerControlDevices": false,
+                "autoAdaptation": {
+                    "enabled": false,
+                    "maxFlowTemperature": null
+                }
+            }
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/flowTemperatureOptimization",
+        )
+        return result if isinstance(result, dict) else {}
+
+    async def set_max_flow_temperature(self, temperature: int) -> None:
+        """Set the maximum flow temperature for the boiler.
+
+        Args:
+            temperature: Temperature in °C (typically 20-75, depends on constraints)
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "PATCH",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/flowTemperatureOptimization",
+            json_data={"maxFlowTemperature": temperature},
+        )
+
+    async def set_flow_temp_auto_adaptation(self, enabled: bool) -> None:
+        """Enable or disable auto-adaptation for flow temperature.
+
+        Args:
+            enabled: True to enable auto-adaptation, False to disable
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "PATCH",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/flowTemperatureOptimization",
+            json_data={"autoAdaptation": {"enabled": enabled}},
+        )

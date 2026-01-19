@@ -6,11 +6,7 @@ This document tracks planned features and enhancements for the Tado X Home Assis
 
 ### P2 - High Priority
 
-- **Flow Temperature Optimization** - Read and control boiler flow temperature via Tado API
-  - Requested by: @xiic
-  - Issue: [#21](https://github.com/exabird/ha-tado-x/issues/21)
-  - Date: 2026-01-19
-  - Notes: Sensor for `maxFlowTemperature`, service to set it, optional auto-adaptation toggle. API endpoints documented in issue.
+*None currently - all P2 items completed in v1.8.0*
 
 ### P3 - Medium Priority
 
@@ -28,6 +24,7 @@ This document tracks planned features and enhancements for the Tado X Home Assis
 See [CHANGELOG](https://github.com/exabird/ha-tado-x/releases) for completed features by version.
 
 **Recent highlights:**
+- v1.8.0 - Flow Temperature Optimization (max flow temp control, auto-adaptation switch)
 - v1.7.1 - Fix set_climate_timer validation for non-Tado entities
 - v1.7.0 - Home presence sensors, select entity, set_climate_timer service, graceful 429 rate limit handling
 - v1.6.7 - Weather sensor fix (all states supported)

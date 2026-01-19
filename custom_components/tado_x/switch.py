@@ -36,6 +36,10 @@ async def async_setup_entry(
     for room_id in coordinator.data.rooms:
         entities.append(TadoXOpenWindowSwitch(coordinator, room_id))
 
+    # Add flow temperature auto-adaptation switch if available
+    if coordinator.data and coordinator.data.has_flow_temp_control:
+        entities.append(TadoXFlowTempAutoAdaptationSwitch(coordinator))
+
     async_add_entities(entities)
 
 
@@ -208,6 +212,63 @@ class TadoXOpenWindowSwitch(CoordinatorEntity[TadoXDataUpdateCoordinator], Switc
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Reset/dismiss open window detection."""
         await self.coordinator.api.set_open_window_detection(self._room_id, False)
+        await self.coordinator.async_request_refresh()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.async_write_ha_state()
+
+
+class TadoXFlowTempAutoAdaptationSwitch(CoordinatorEntity[TadoXDataUpdateCoordinator], SwitchEntity):
+    """Tado X flow temperature auto-adaptation switch.
+
+    When enabled, Tado automatically adjusts the max flow temperature
+    based on outdoor conditions to improve energy efficiency.
+    """
+
+    _attr_has_entity_name = True
+    _attr_device_class = SwitchDeviceClass.SWITCH
+    _attr_icon = "mdi:auto-fix"
+    _attr_translation_key = "flow_temp_auto_adaptation"
+
+    def __init__(self, coordinator: TadoXDataUpdateCoordinator) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.home_id}_flow_temp_auto_adaptation"
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info for the home."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, str(self.coordinator.home_id))},
+            name=self.coordinator.home_name,
+            manufacturer="Tado",
+            model="Tado X Home",
+        )
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True if auto-adaptation is enabled."""
+        data = self.coordinator.data
+        if not data or not data.has_flow_temp_control:
+            return None
+        return data.flow_temp_auto_adaptation
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        data = self.coordinator.data
+        return data is not None and data.has_flow_temp_control
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable flow temperature auto-adaptation."""
+        await self.coordinator.api.set_flow_temp_auto_adaptation(True)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable flow temperature auto-adaptation."""
+        await self.coordinator.api.set_flow_temp_auto_adaptation(False)
         await self.coordinator.async_request_refresh()
 
     @callback

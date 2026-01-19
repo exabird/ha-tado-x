@@ -272,6 +272,14 @@
       },
       "open_window": {
         "name": "Open Window"
+      },
+      "flow_temp_auto_adaptation": {
+        "name": "Flow Temp Auto-Adaptation"
+      }
+    },
+    "number": {
+      "max_flow_temperature": {
+        "name": "Max Flow Temperature"
       }
     },
     "button": {
