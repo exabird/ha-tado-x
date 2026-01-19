@@ -180,13 +180,39 @@ See [all feature requests](https://github.com/exabird/ha-tado-x/issues?q=is%3Ais
 
 ## Why This Integration Exists
 
-Tado X devices use a different API than previous Tado generations. While Tado recommends using Matter integration, many users experience issues with Matter setup (greyed-out pairing buttons, requiring full device resets).
+Tado X devices use a different API than previous Tado generations. While Tado recommends using Matter integration, many users experience significant issues with Matter setup:
 
-This integration uses Tado's official API to provide reliable Home Assistant integration for Tado X users who:
+- **Greyed-out pairing buttons** preventing Matter device linking
+- **Failed pairing attempts** with cryptic error messages
+- **Tado's official solution** requires a [full device reset](https://help.tado.com/en/articles/10264695-how-can-i-fix-matter-device-linking-errors) - impractical for remote installations (vacation homes, rental properties, elderly parents' homes)
+
+This integration uses Tado's official cloud API to provide reliable Home Assistant integration for Tado X users who:
 - Cannot get Matter integration working
-- Prefer cloud-based API control
-- Need features not available through Matter
+- Have remote installations where physical device reset isn't feasible
+- Prefer cloud-based API control with smart quota management
+- Need features not available through Matter (presets, temperature offset, Energy IQ)
 - Want full Home Assistant integration capabilities
+
+### A Note to Tado
+
+We appreciate Tado's commitment to smart home standards like Matter. However, the current Matter implementation challenges highlight the importance of **local API access**. Many smart home enthusiasts would welcome a local API on the Tado X Bridge, similar to what other manufacturers provide. This would:
+- Eliminate cloud dependency for basic operations
+- Improve response times and reliability
+- Provide a fallback when Matter pairing fails
+- Respect user privacy and data sovereignty
+
+We hope Tado considers this for future firmware updates. The smart home community would be grateful!
+
+## Support the Project
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/exabird)
+
+If you find this integration useful, consider supporting its development! Your sponsorship helps fund:
+- New features and improvements
+- Bug fixes and compatibility updates
+- Documentation and community support
+
+**[Become a Sponsor](https://github.com/sponsors/exabird)**
 
 ## Support
 

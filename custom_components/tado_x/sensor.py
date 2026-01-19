@@ -146,6 +146,15 @@ DEVICE_SENSORS: tuple[TadoXDeviceSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda device: device.temperature_measured,
     ),
+    TadoXDeviceSensorEntityDescription(
+        key="temperature_offset",
+        translation_key="temperature_offset",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:thermometer-plus",
+        value_fn=lambda device: device.temperature_offset,
+    ),
 )
 
 def _get_api_usage_percentage(data: TadoXData) -> float:
@@ -298,6 +307,9 @@ async def async_setup_entry(
             for description in DEVICE_SENSORS:
                 # Skip device temperature for sensors that don't have it
                 if description.key == "device_temperature" and device.temperature_measured is None:
+                    continue
+                # Skip temperature offset for devices that don't support it (Bridge)
+                if description.key == "temperature_offset" and device.temperature_offset is None:
                     continue
                 entities.append(TadoXDeviceSensor(coordinator, device.serial_number, description))
 

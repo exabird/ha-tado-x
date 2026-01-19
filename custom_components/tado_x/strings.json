@@ -152,6 +152,9 @@
       "device_temperature": {
         "name": "Device Temperature"
       },
+      "temperature_offset": {
+        "name": "Temperature Offset"
+      },
       "api_calls_today": {
         "name": "API calls today"
       },
