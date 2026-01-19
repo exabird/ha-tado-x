@@ -86,3 +86,43 @@ set_eiq_tariff:
       example: "2026-12-31"
       selector:
         text:
+
+set_climate_timer:
+  name: Set climate timer
+  description: Set a room temperature for a specific duration. Useful for temporary overrides like a quick boost or extending heating.
+  target:
+    entity:
+      integration: tado_x
+      domain: climate
+  fields:
+    entity_id:
+      name: Climate entity
+      description: The Tado X climate entity (room) to control
+      required: true
+      example: "climate.living_room"
+      selector:
+        entity:
+          integration: tado_x
+          domain: climate
+    temperature:
+      name: Temperature
+      description: Target temperature in °C
+      required: true
+      example: 22.0
+      selector:
+        number:
+          min: 5.0
+          max: 25.0
+          step: 0.5
+          unit_of_measurement: "°C"
+    duration:
+      name: Duration
+      description: Duration in minutes (1-1440, i.e., up to 24 hours)
+      required: true
+      example: 30
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: "min"

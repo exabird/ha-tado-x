@@ -36,8 +36,6 @@ from .coordinator import TadoXDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.SENSOR, Platform.BINARY_SENSOR]
-
 # Service constants
 SERVICE_SET_TEMPERATURE_OFFSET: Final = "set_temperature_offset"
 ATTR_OFFSET: Final = "offset"
@@ -51,6 +49,11 @@ ATTR_TARIFF: Final = "tariff"
 ATTR_UNIT: Final = "unit"
 ATTR_START_DATE: Final = "start_date"
 ATTR_END_DATE: Final = "end_date"
+
+SERVICE_SET_CLIMATE_TIMER: Final = "set_climate_timer"
+ATTR_ENTITY_ID: Final = "entity_id"
+ATTR_TEMPERATURE: Final = "temperature"
+ATTR_DURATION: Final = "duration"
 
 # Service schemas
 SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA = vol.Schema(
@@ -76,6 +79,20 @@ SERVICE_SET_EIQ_TARIFF_SCHEMA = vol.Schema(
         vol.Required(ATTR_UNIT): vol.In(["m3", "kWh"]),
         vol.Optional(ATTR_START_DATE): cv.string,
         vol.Optional(ATTR_END_DATE): cv.string,
+    }
+)
+
+SERVICE_SET_CLIMATE_TIMER_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_TEMPERATURE): vol.All(
+            vol.Coerce(float),
+            vol.Range(min=5.0, max=25.0),
+        ),
+        vol.Required(ATTR_DURATION): vol.All(
+            vol.Coerce(int),
+            vol.Range(min=1, max=1440),  # 1 minute to 24 hours
+        ),
     }
 )
 
@@ -303,6 +320,69 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SERVICE_SET_EIQ_TARIFF,
             async_set_eiq_tariff,
             schema=SERVICE_SET_EIQ_TARIFF_SCHEMA,
+        )
+
+    async def async_set_climate_timer(call: ServiceCall) -> None:
+        """Handle set_climate_timer service call."""
+        entity_id = call.data[ATTR_ENTITY_ID]
+        temperature = call.data[ATTR_TEMPERATURE]
+        duration_minutes = call.data[ATTR_DURATION]
+
+        # Get the entity state to extract room_id
+        state = hass.states.get(entity_id)
+        if not state:
+            raise HomeAssistantError(f"Entity {entity_id} not found")
+
+        # Entity unique_id format: {home_id}_{room_id}
+        # Get room_id from the entity's unique_id attribute via entity registry
+        from homeassistant.helpers import entity_registry as er
+        entity_registry = er.async_get(hass)
+        entity_entry = entity_registry.async_get(entity_id)
+
+        if not entity_entry or not entity_entry.unique_id:
+            raise HomeAssistantError(f"Could not find entity {entity_id} in registry")
+
+        # Extract room_id from unique_id (format: home_id_room_id)
+        try:
+            parts = entity_entry.unique_id.split("_")
+            if len(parts) >= 2:
+                room_id = int(parts[-1])
+            else:
+                raise ValueError("Invalid unique_id format")
+        except (ValueError, IndexError) as err:
+            raise HomeAssistantError(
+                f"Could not extract room_id from entity {entity_id}: {err}"
+            ) from err
+
+        # Convert minutes to seconds
+        duration_seconds = duration_minutes * 60
+
+        try:
+            await coordinator.api.set_room_temperature(
+                room_id=room_id,
+                temperature=temperature,
+                power="ON",
+                termination_type="TIMER",
+                duration_seconds=duration_seconds,
+            )
+            await coordinator.async_request_refresh()
+            _LOGGER.info(
+                "Set %s to %.1f°C for %d minutes",
+                entity_id,
+                temperature,
+                duration_minutes,
+            )
+        except TadoXApiError as err:
+            _LOGGER.error("Failed to set climate timer: %s", err)
+            raise HomeAssistantError(f"Failed to set climate timer: {err}") from err
+
+    # Register climate timer service (only once per integration)
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_CLIMATE_TIMER):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_CLIMATE_TIMER,
+            async_set_climate_timer,
+            schema=SERVICE_SET_CLIMATE_TIMER_SCHEMA,
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

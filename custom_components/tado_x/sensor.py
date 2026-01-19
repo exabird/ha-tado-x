@@ -188,6 +188,23 @@ def _get_api_calls_today(data: TadoXData) -> int:
     return data.api_calls_today
 
 
+def _get_api_status(data: TadoXData) -> str:
+    """Get API status - OK or RATE_LIMITED."""
+    return "RATE_LIMITED" if data.rate_limited else "OK"
+
+
+def _get_presence_state(data: TadoXData) -> str | None:
+    """Get the current presence state (HOME/AWAY)."""
+    return data.presence
+
+
+def _get_presence_mode(data: TadoXData) -> str:
+    """Get the presence mode - MANUAL (locked) or AUTO (geofencing)."""
+    if data.presence_locked:
+        return "MANUAL"
+    return "AUTO"
+
+
 HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
     TadoXHomeSensorEntityDescription(
         key="api_calls_today",
@@ -224,6 +241,30 @@ HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
         icon="mdi:clock-outline",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda data: data.api_reset_time,
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="api_status",
+        translation_key="api_status",
+        icon="mdi:api",
+        device_class=SensorDeviceClass.ENUM,
+        options=["OK", "RATE_LIMITED"],
+        value_fn=_get_api_status,
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="presence_state",
+        translation_key="presence_state",
+        icon="mdi:home-account",
+        device_class=SensorDeviceClass.ENUM,
+        options=["HOME", "AWAY"],
+        value_fn=_get_presence_state,
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="presence_mode",
+        translation_key="presence_mode",
+        icon="mdi:map-marker-account",
+        device_class=SensorDeviceClass.ENUM,
+        options=["AUTO", "MANUAL"],
+        value_fn=_get_presence_mode,
     ),
 )
 

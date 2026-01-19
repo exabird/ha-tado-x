@@ -30,6 +30,15 @@ class TadoXApiError(Exception):
     """Exception for API errors."""
 
 
+class TadoXRateLimitError(TadoXApiError):
+    """Exception for rate limit (429) errors."""
+
+    def __init__(self, message: str, reset_time: datetime | None = None):
+        """Initialize with optional reset time."""
+        super().__init__(message)
+        self.reset_time = reset_time
+
+
 class TadoXApi:
     """Tado X API client."""
 
@@ -342,6 +351,18 @@ class TadoXApi:
                         if retry_response.content_length == 0:
                             return None
                         return await retry_response.json()
+
+                if response.status == 429:
+                    # Rate limited - raise specific exception with reset time
+                    _LOGGER.warning(
+                        "Rate limit exceeded (429). Quota remaining: %s, Reset time: %s",
+                        self._api_quota_remaining,
+                        self._api_call_reset_time,
+                    )
+                    raise TadoXRateLimitError(
+                        "API rate limit exceeded (429). Please wait for quota reset.",
+                        reset_time=self._api_call_reset_time,
+                    )
 
                 if response.status not in (200, 204):
                     text = await response.text()

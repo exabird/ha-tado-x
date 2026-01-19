@@ -112,6 +112,24 @@
           "description": "End date for the tariff (YYYY-MM-DD format)"
         }
       }
+    },
+    "set_climate_timer": {
+      "name": "Set climate timer",
+      "description": "Set a room temperature for a specific duration",
+      "fields": {
+        "entity_id": {
+          "name": "Climate entity",
+          "description": "The Tado X climate entity (room) to control"
+        },
+        "temperature": {
+          "name": "Temperature",
+          "description": "Target temperature in °C"
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Duration in minutes (1-1440)"
+        }
+      }
     }
   },
   "entity": {
@@ -169,6 +187,27 @@
       },
       "api_reset_time": {
         "name": "API reset time"
+      },
+      "api_status": {
+        "name": "API status",
+        "state": {
+          "OK": "OK",
+          "RATE_LIMITED": "Rate Limited"
+        }
+      },
+      "presence_state": {
+        "name": "Presence",
+        "state": {
+          "HOME": "Home",
+          "AWAY": "Away"
+        }
+      },
+      "presence_mode": {
+        "name": "Presence Mode",
+        "state": {
+          "AUTO": "Auto (Geofencing)",
+          "MANUAL": "Manual Override"
+        }
       },
       "outdoor_temperature": {
         "name": "Outdoor Temperature"
@@ -244,6 +283,16 @@
       },
       "resume_schedules": {
         "name": "Resume Schedules"
+      }
+    },
+    "select": {
+      "presence_mode": {
+        "name": "Presence Mode",
+        "state": {
+          "home": "Home",
+          "away": "Away",
+          "auto": "Auto (Geofencing)"
+        }
       }
     },
     "device_tracker": {

@@ -75,4 +75,4 @@ CONNECTION_STATE_CONNECTED: Final = "CONNECTED"
 CONNECTION_STATE_DISCONNECTED: Final = "DISCONNECTED"
 
 # Platforms
-PLATFORMS: Final = ["climate", "sensor", "binary_sensor", "switch", "button", "device_tracker"]
+PLATFORMS: Final = ["climate", "sensor", "binary_sensor", "switch", "button", "device_tracker", "select"]

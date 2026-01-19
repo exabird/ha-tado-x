@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import TadoXApi, TadoXApiError, TadoXAuthError
+from .api import TadoXApi, TadoXApiError, TadoXAuthError, TadoXRateLimitError
 from .const import DOMAIN, SCAN_INTERVAL_AUTO_ASSIST, SCAN_INTERVAL_FREE_TIER
 
 if TYPE_CHECKING:
@@ -114,6 +114,9 @@ class TadoXData:
     running_times: dict[str, Any] = field(default_factory=dict)
     # Air comfort data per room
     air_comfort: dict[int, TadoXRoomAirComfort] = field(default_factory=dict)
+    # Rate limit status
+    rate_limited: bool = False
+    rate_limit_reset: datetime | None = None
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -463,6 +466,24 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
 
             return data
 
+        except TadoXRateLimitError as err:
+            # Handle rate limit gracefully - return previous data with rate_limited flag
+            _LOGGER.warning(
+                "Rate limit hit. Suspending API calls until %s. Using cached data.",
+                err.reset_time,
+            )
+            if self.data:
+                # Return previous data with rate_limited flag set
+                self.data.rate_limited = True
+                self.data.rate_limit_reset = err.reset_time
+                return self.data
+            # No previous data - create minimal data with rate limited status
+            return TadoXData(
+                home_id=self.home_id,
+                home_name=self.home_name,
+                rate_limited=True,
+                rate_limit_reset=err.reset_time,
+            )
         except TadoXAuthError as err:
             raise UpdateFailed(f"Authentication error: {err}") from err
         except TadoXApiError as err:
