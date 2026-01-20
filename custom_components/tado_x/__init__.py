@@ -349,12 +349,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not entity_entry.unique_id:
             raise HomeAssistantError(f"Entity {entity_id} has no unique_id")
 
-        # Extract room_id from unique_id (format: home_id_room_id)
-        # The unique_id for Tado X climate entities is "{home_id}_{room_id}"
+        # Extract room_id from unique_id
+        # The unique_id for Tado X climate entities is "{home_id}_{room_id}_climate"
         try:
             parts = entity_entry.unique_id.split("_")
-            if len(parts) == 2:
-                # Format: "12345_67" where 12345 is home_id and 67 is room_id
+            if len(parts) == 3 and parts[2] == "climate":
+                # Format: "12345_67_climate" where 12345 is home_id and 67 is room_id
+                room_id = int(parts[1])
+            elif len(parts) == 2:
+                # Legacy format: "12345_67" (backward compatibility)
                 room_id = int(parts[1])
             else:
                 raise ValueError(f"Unexpected unique_id format: {entity_entry.unique_id}")
