@@ -1,0 +1,278 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tado X Authentication",
+        "description": "Click Submit to start the authentication process with Tado. You will be redirected to authorize this integration."
+      },
+      "auth": {
+        "title": "Authorize Tado X",
+        "description": "Please visit the following URL and enter the code to authorize Home Assistant:\n\n**URL:** {verification_uri}\n\n**Code:** `{user_code}`\n\nAfter authorizing, click Submit."
+      },
+      "select_home": {
+        "title": "Select Home",
+        "description": "Multiple Tado homes found. Please select the home you want to configure.",
+        "data": {
+          "home_id": "Home"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Tado X",
+        "description": "Your Tado X authentication has expired. Click Submit to re-authenticate."
+      },
+      "reauth_auth": {
+        "title": "Authorize Tado X",
+        "description": "Please visit the following URL and enter the code to authorize Home Assistant:\n\n**URL:** {verification_uri}\n\n**Code:** `{user_code}`\n\nAfter authorizing, click Submit."
+      }
+    },
+    "error": {
+      "auth_error": "Authentication failed. Please try again.",
+      "auth_timeout": "Authentication timed out. Please ensure you completed the authorization and try again.",
+      "cannot_connect": "Cannot connect to Tado. Please check your internet connection.",
+      "no_homes": "No Tado homes found for this account.",
+      "unknown": "An unknown error occurred."
+    },
+    "abort": {
+      "already_configured": "This Tado home is already configured.",
+      "reauth_successful": "Re-authentication successful.",
+      "unknown": "An unknown error occurred."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tado X Options",
+        "description": "Configure your Tado X integration settings.\n\n**API Quota:**\n- Without Auto-Assist: 100 requests/day → updates every 45 min\n- With Auto-Assist: 20,000 requests/day → updates every 30 sec",
+        "data": {
+          "has_auto_assist": "Auto-Assist subscription",
+          "scan_interval": "Update interval (seconds)",
+          "enable_weather": "Enable weather sensors",
+          "enable_mobile_devices": "Enable mobile device tracking",
+          "enable_air_comfort": "Enable air comfort sensors",
+          "enable_running_times": "Enable heating time sensors"
+        },
+        "data_description": {
+          "has_auto_assist": "Enable this if you have an Auto-Assist subscription. This will automatically adjust the update interval.",
+          "scan_interval": "How often to poll the Tado API (in seconds). Minimum: 30s, Maximum: 3600s (1 hour). Without Auto-Assist, keep at 2700s (45 min) to stay under 100 requests/day.",
+          "enable_weather": "Enables outdoor temperature, solar intensity, and weather state sensors. Uses 1 API call per update.",
+          "enable_mobile_devices": "Enables device trackers for mobile phones with geofencing. Uses 1 API call per update.",
+          "enable_air_comfort": "Enables air freshness and comfort level sensors per room. Uses 1 API call per update.",
+          "enable_running_times": "Enables heating time today sensors per room. Uses 1 API call per update."
+        }
+      }
+    }
+  },
+  "services": {
+    "set_temperature_offset": {
+      "name": "Set temperature offset",
+      "description": "Adjust the temperature offset for a Tado X device (valve or sensor) to calibrate temperature readings.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Tado X device to calibrate"
+        },
+        "offset": {
+          "name": "Temperature offset",
+          "description": "Temperature offset in °C. Positive values increase the reading, negative values decrease it."
+        }
+      }
+    },
+    "add_meter_reading": {
+      "name": "Add meter reading",
+      "description": "Upload a meter reading to Tado Energy IQ",
+      "fields": {
+        "reading": {
+          "name": "Reading",
+          "description": "Meter reading value (integer)"
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date of reading (YYYY-MM-DD format, defaults to today)"
+        }
+      }
+    },
+    "set_eiq_tariff": {
+      "name": "Set energy tariff",
+      "description": "Set an energy tariff in Tado Energy IQ for cost calculations",
+      "fields": {
+        "tariff": {
+          "name": "Tariff",
+          "description": "Price per unit (e.g., 0.85 for €0.85/m³)"
+        },
+        "unit": {
+          "name": "Unit",
+          "description": "Energy unit type (m3 or kWh)"
+        },
+        "start_date": {
+          "name": "Start date",
+          "description": "Start date for the tariff (YYYY-MM-DD format)"
+        },
+        "end_date": {
+          "name": "End date",
+          "description": "End date for the tariff (YYYY-MM-DD format)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "tado_x": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Home",
+              "away": "Away",
+              "auto": "Auto (Geofencing)",
+              "schedule": "Schedule"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "heating_power": {
+        "name": "Heating Power"
+      },
+      "heating_time_today": {
+        "name": "Heating Time Today"
+      },
+      "battery": {
+        "name": "Battery",
+        "state": {
+          "normal": "Normal",
+          "low": "Low"
+        }
+      },
+      "device_temperature": {
+        "name": "Device Temperature"
+      },
+      "api_calls_today": {
+        "name": "API calls today"
+      },
+      "api_quota_remaining": {
+        "name": "API quota remaining"
+      },
+      "api_quota_limit": {
+        "name": "API quota limit"
+      },
+      "api_usage_percentage": {
+        "name": "API usage"
+      },
+      "api_reset_time": {
+        "name": "API reset time"
+      },
+      "outdoor_temperature": {
+        "name": "Outdoor Temperature"
+      },
+      "solar_intensity": {
+        "name": "Solar Intensity"
+      },
+      "weather_state": {
+        "name": "Weather State",
+        "state": {
+          "SUNNY": "Sunny",
+          "CLOUDY": "Cloudy",
+          "CLOUDY_PARTLY": "Partly Cloudy",
+          "CLOUDY_MOSTLY": "Mostly Cloudy",
+          "NIGHT_CLEAR": "Clear Night",
+          "NIGHT_CLOUDY": "Cloudy Night",
+          "RAIN": "Rain",
+          "DRIZZLE": "Drizzle",
+          "SNOW": "Snow",
+          "FOGGY": "Foggy",
+          "THUNDERSTORMS": "Thunderstorms",
+          "WINDY": "Windy"
+        }
+      },
+      "air_freshness": {
+        "name": "Humidity Level",
+        "state": {
+          "humid": "Humid",
+          "comfy": "Comfortable",
+          "dry": "Dry"
+        }
+      },
+      "comfort_level": {
+        "name": "Comfort Level",
+        "state": {
+          "cold": "Cold",
+          "comfy": "Comfortable",
+          "warm": "Warm"
+        }
+      }
+    },
+    "binary_sensor": {
+      "window_open": {
+        "name": "Window Open"
+      },
+      "heating": {
+        "name": "Heating"
+      },
+      "overlay_active": {
+        "name": "Manual Control"
+      },
+      "connectivity": {
+        "name": "Connectivity"
+      },
+      "battery_low": {
+        "name": "Battery Low"
+      }
+    },
+    "switch": {
+      "child_lock": {
+        "name": "Child Lock"
+      },
+      "open_window": {
+        "name": "Open Window"
+      }
+    },
+    "button": {
+      "boost_all": {
+        "name": "Boost All"
+      },
+      "disable_all": {
+        "name": "Turn Off All"
+      },
+      "resume_schedules": {
+        "name": "Resume Schedules"
+      }
+    },
+    "device_tracker": {
+      "mobile_device": {
+        "name": "Mobile Device",
+        "state": {
+          "home": "Home",
+          "away": "Away",
+          "not_tracking": "Not Tracking",
+          "unknown": "Unknown"
+        },
+        "state_attributes": {
+          "geofencing_enabled": {
+            "name": "Geofencing Enabled"
+          },
+          "at_home": {
+            "name": "At Home"
+          },
+          "platform": {
+            "name": "Platform"
+          },
+          "os_version": {
+            "name": "OS Version"
+          },
+          "model": {
+            "name": "Model"
+          },
+          "locale": {
+            "name": "Locale"
+          }
+        }
+      }
+    }
+  }
+}
