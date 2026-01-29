@@ -397,6 +397,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SERVICE_SET_CLIMATE_TIMER_SCHEMA,
         )
 
+    # Create the "Home" device before loading platforms to ensure via_device references work
+    # This prevents deprecation warnings about via_device referencing non-existing devices
+    device_registry_instance = dr.async_get(hass)
+    device_registry_instance.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, str(home_id))},
+        name=f"{home_name} Home",
+        manufacturer="Tado",
+        model="Tado X Home",
+    )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
