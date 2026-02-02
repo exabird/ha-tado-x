@@ -64,7 +64,7 @@ DEFAULT_TIMER_DURATION: Final = 1800
 
 # Temperature limits
 MIN_TEMP: Final = 5.0
-MAX_TEMP: Final = 25.0
+MAX_TEMP: Final = 30.0
 TEMP_STEP: Final = 0.5
 
 # Battery states
