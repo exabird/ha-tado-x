@@ -92,7 +92,7 @@ Tado enforces daily API limits. This integration **automatically adapts** its po
 
 | Subscription | Daily Limit | Auto Polling Interval | Actual Usage |
 |--------------|-------------|----------------------|--------------|
-| Without Auto-Assist | 100 requests/day | Every 45 minutes | ~96 req/day ✅ |
+| Without Auto-Assist | 5000 requests/day | Every 45 minutes | ~96 req/day ✅ |
 | With Auto-Assist | 20,000 requests/day | Every 30 seconds | ~2,880 req/day ✅ |
 
 ### Configuration Options
