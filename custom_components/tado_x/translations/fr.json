@@ -153,13 +153,13 @@
         "name": "Température de l'appareil"
       },
       "api_calls_today": {
-        "name": "Nombre d'appels à l'API aujourd'hui"
+        "name": "Appels API aujourd'hui"
       },
       "api_quota_remaining": {
-        "name": "Quota restant d'appels à l'API"
+        "name": "Quota API restant"
       },
       "api_quota_limit": {
-        "name": "Quota maximum d'appels à l'API"
+        "name": "Limite de quota API"
       },
       "api_usage_percentage": {
         "name": "Utilisation de l'API"
