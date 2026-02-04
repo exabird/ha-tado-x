@@ -79,7 +79,7 @@
     },
     "add_meter_reading": {
       "name": "Ajouter un relevé de compteur",
-      "description": "Envoi un relevé de compteur à Tado Energy IQ",
+      "description": "Envoi d'un relevé de compteur à Tado Energy IQ",
       "fields": {
         "reading": {
           "name": "Relevé",
@@ -240,7 +240,7 @@
         "name": "Tout éteindre"
       },
       "resume_schedules": {
-        "name": "Réactiver la programmation horaire"
+        "name": "Reprendre les programmations"
       }
     },
     "device_tracker": {
