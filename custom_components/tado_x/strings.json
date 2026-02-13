@@ -293,6 +293,15 @@
       },
       "resume_schedules": {
         "name": "Resume Schedules"
+      },
+      "boost_hot_water": {
+        "name": "Boost Hot Water"
+      },
+      "disable_hot_water": {
+        "name": "Turn Off Hot Water"
+      },
+      "resume_hot_water_schedule": {
+        "name": "Resume Hot Water Schedule"
       }
     },
     "select": {

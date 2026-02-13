@@ -855,3 +855,37 @@ class TadoXApi:
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/flowTemperatureOptimization",
             json_data={"autoAdaptation": {"enabled": enabled}},
         )
+
+    async def boost_domestic_hot_water(self) -> None:
+        """Boost domestic hot water."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/programmer/domesticHotWater/boost",
+            json_data={ "boost": "ON" },
+        )
+
+    async def disable_domestic_hot_water(self) -> None:
+        """Turn off domestic hot water."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/programmer/domesticHotWater/boost",
+            json_data={ "boost": "OFF" },
+        )
+        
+    async def resume_domestic_hot_water_schedule(self) -> None:
+        """Resume the schedule for domestic hot water."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/programmer/domesticHotWater/resumeSchedule",
+        )
+    
+

@@ -273,6 +273,15 @@
       },
       "resume_schedules": {
         "name": "Zeitplan fortsetzen"
+      },
+      "boost_hot_water": {
+        "name": "Warmwasser steigern"
+      },
+      "disable_hot_water": {
+        "name": "Schalten sie heißes wasser aus"
+      },
+      "resume_hot_water_schedule": {
+        "name": "Warmwasserplan wieder aufnehmen"
       }
     },
     "device_tracker": {

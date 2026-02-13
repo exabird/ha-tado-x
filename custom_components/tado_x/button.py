@@ -44,6 +44,24 @@ BUTTON_DESCRIPTIONS: tuple[TadoXButtonEntityDescription, ...] = (
         icon="mdi:calendar-clock",
         press_fn=lambda coordinator: coordinator.api.resume_all_schedules(),
     ),
+    TadoXButtonEntityDescription(
+        key="boost_hot_water",
+        translation_key="boost_hot_water",
+        icon="mdi:fire",
+        press_fn=lambda coordinator: coordinator.api.boost_domestic_hot_water(),
+    ),
+    TadoXButtonEntityDescription(
+        key="disable_hot_water",
+        translation_key="disable_hot_water",
+        icon="mdi:power-off",
+        press_fn=lambda coordinator: coordinator.api.disable_domestic_hot_water(),
+    ),
+    TadoXButtonEntityDescription(
+        key="resume_hot_water_schedule",
+        translation_key="resume_hot_water_schedule",
+        icon="mdi:calendar-clock",
+        press_fn=lambda coordinator: coordinator.api.resume_domestic_hot_water_schedule(),
+    ),
 )
 
 

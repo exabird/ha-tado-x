@@ -223,7 +223,10 @@
     "button": {
       "boost_all": { "name": "Boost globale" },
       "disable_all": { "name": "Spegni tutto" },
-      "resume_schedules": { "name": "Riprendi programmazioni" }
+      "resume_schedules": { "name": "Riprendi programmazioni" },
+      "boost_hot_water": { "name": "Boost L'acqua calda" },
+      "disable_hot_water": { "name": "Spegni l'acqua calda" },
+      "resume_hot_water_schedule": {"name": "Riprendi l'acqua calda programmazioni"}
     },
     "device_tracker": {
       "mobile_device": {
