@@ -197,6 +197,15 @@
       "solar_intensity": {
         "name": "Sonnenintensität"
       },
+      "dhw_state": {
+        "name": "Warmwasserzustand",
+        "state": {
+          "OFF": "Aus",
+          "SCHEDULE_OFF": "Zeitplan Aus",
+          "SCHEDULE_ON": "Zeitplan Ein",
+          "BOOST": "Hochfahren"
+        }
+      },
       "weather_state": {
         "name": "Wetterlage",
         "state": {

@@ -171,6 +171,15 @@
       },
       "outdoor_temperature": { "name": "Temperatura esterna" },
       "solar_intensity": { "name": "Intensità solare" },
+      "dhw_state": {
+        "name": "Stato acqua calda",
+        "state": {
+          "OFF": "Spento",
+          "SCHEDULE_OFF": "Programmazione spenta",
+          "SCHEDULE_ON": "Programmazione accesa",
+          "BOOST": "Boost"
+        }
+      },
       "weather_state": {
         "name": "Stato meteo",
         "state": {

@@ -125,6 +125,8 @@ class TadoXData:
     flow_temp_auto_adaptation: bool = False
     flow_temp_auto_value: int | None = None
     has_flow_temp_control: bool = False
+    # Domestic hot water state (e.g., OFF, SCHEDULE_ON, SCHEDULE_OFF, BOOST)
+    dhw_state: str | None = None
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -216,6 +218,10 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             presence = home_state.get("presence")
             presence_locked = home_state.get("presenceLocked", False)
 
+            # Get domestic hot water state 
+            dhw_state_response = await self.api.get_domestic_hot_water_state()
+            dhw_state = dhw_state_response.get("state")
+            
             # Get weather data (optional)
             weather = None
             if self.enable_weather:
@@ -242,6 +248,7 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 presence=presence,
                 presence_locked=presence_locked,
                 weather=weather,
+                dhw_state=dhw_state
             )
 
             # Process rooms and devices

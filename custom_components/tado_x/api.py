@@ -856,6 +856,27 @@ class TadoXApi:
             json_data={"autoAdaptation": {"enabled": enabled}},
         )
 
+    async def get_domestic_hot_water_state(self) -> dict[str, Any]:
+        """Get the status of domestic hot water.
+
+        Returns:
+            Status information including:
+            {
+                "status": "OFF" | "SCHEDULE_OFF" |"SCHEDULE_ON" | "BOOST",
+                "nextStateChange": "2026-02-14T16:00:00Z",
+                "setpoint": null,
+                "setpointConstraints": null
+            }
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/programmer/domesticHotWater/state",
+        )
+        return result if isinstance(result, dict) else {}
+
     async def boost_domestic_hot_water(self) -> None:
         """Boost domestic hot water."""
         if not self._home_id:

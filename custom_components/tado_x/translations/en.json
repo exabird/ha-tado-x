@@ -197,6 +197,15 @@
       "solar_intensity": {
         "name": "Solar Intensity"
       },
+      "dhw_state":{
+        "name": "Hot Water State",
+        "state": {
+          "OFF": "Off",
+          "SCHEDULE_OFF": "Schedule Off",
+          "SCHEDULE_ON": "Schedule On",
+          "BOOST": "Boost"
+        }
+      },
       "weather_state": {
         "name": "Weather State",
         "state": {

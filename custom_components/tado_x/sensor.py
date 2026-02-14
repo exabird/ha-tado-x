@@ -204,6 +204,10 @@ def _get_presence_mode(data: TadoXData) -> str:
         return "MANUAL"
     return "AUTO"
 
+def _get_domestic_hot_water_state(data: TadoXData) -> str:
+    """Get the state of DHW (OFF, SCHEDULE_OFF, SCHEDULE_ON, BOOST)."""
+    return data.dhw_state;
+
 
 HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
     TadoXHomeSensorEntityDescription(
@@ -265,6 +269,14 @@ HOME_SENSORS: tuple[TadoXHomeSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=["AUTO", "MANUAL"],
         value_fn=_get_presence_mode,
+    ),
+    TadoXHomeSensorEntityDescription(
+        key="dhw_state",
+        translation_key="dhw_state",
+        icon="mdi:water-boiler",
+        device_class=SensorDeviceClass.ENUM,
+        options=["OFF", "SCHEDULE_OFF", "SCHEDULE_ON", "BOOST"],
+        value_fn=_get_domestic_hot_water_state,
     ),
 )
 
