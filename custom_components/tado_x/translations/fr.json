@@ -1,0 +1,278 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Authentification Tado X",
+        "description": "Cliquez sur Soumettre pour démarrer le processus d'authentification avec Tado. Vous serez redirigé pour autoriser cette intégration."
+      },
+      "auth": {
+        "title": "Autoriser Tado X",
+        "description": "Veuillez vous rendre à l'URL suivante et saisir le code pour autoriser Home Assistant :\n\n**URL :** {verification_uri}\n\n**Code :** `{user_code}`\n\nAprès avoir autorisé l'accès, cliquez sur Soumettre."
+      },
+      "select_home": {
+        "title": "Sélectionner la maison",
+        "description": "Plusieurs maisons Tado ont été trouvées. Veuillez sélectionner celle que vous souhaitez configurer.",
+        "data": {
+          "home_id": "Maison"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ré-authentification Tado X",
+        "description": "Votre authentification Tado X a expiré. Cliquez sur Soumettre pour vous ré-authentifier."
+      },
+      "reauth_auth": {
+        "title": "Autoriser Tado X",
+        "description": "Veuillez vous rendre à l'URL suivante et saisir le code pour autoriser Home Assistant :\n\n**URL :** {verification_uri}\n\n**Code :** `{user_code}`\n\nAprès avoir autorisé l'accès, cliquez sur Soumettre."
+      }
+    },
+    "error": {
+      "auth_error": "Échec de l'authentification. Veuillez réessayer.",
+      "auth_timeout": "Délai d'authentification dépassé. Assurez-vous d'avoir terminé l'autorisation et réessayez.",
+      "cannot_connect": "Impossible de se connecter à Tado. Veuillez vérifier votre connexion internet.",
+      "no_homes": "Aucune maison Tado n'a été trouvée pour ce compte.",
+      "unknown": "Une erreur inconnue est survenue."
+    },
+    "abort": {
+      "already_configured": "Cette maison Tado est déjà configurée.",
+      "reauth_successful": "Ré-authentification réussie.",
+      "unknown": "Une erreur inconnue est survenue."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Tado X",
+        "description": "Configurez les paramètres de votre intégration Tado X.\n\n**Quota API :**\n- Sans Auto-Assist : 5000 requêtes/jour → mise à jour toutes les 45 min\n- Avec Auto-Assist : 20 000 requêtes/jour → mise à jour toutes les 30 sec",
+        "data": {
+          "has_auto_assist": "Abonnement Auto-Assist",
+          "scan_interval": "Intervalle de mise à jour (en secondes)",
+          "enable_weather": "Activer les capteurs météo",
+          "enable_mobile_devices": "Activer le suivi des appareils mobiles",
+          "enable_air_comfort": "Activer les capteurs de confort thermique",
+          "enable_running_times": "Activer les capteurs de temps de chauffe"
+        },
+        "data_description": {
+          "has_auto_assist": "Activez cette option si vous avez un abonnement Auto-Assist. Cela ajustera automatiquement l'intervalle de mise à jour.",
+          "scan_interval": "Fréquence d'interrogation de l'API Tado (en secondes). Min : 30s, Max : 3600s (1h). Sans Auto-Assist, maintenez à 2700s (45 min) pour ne pas dépasser 5000 requêtes/jour.",
+          "enable_weather": "Active la température extérieure, l'intensité solaire et les capteurs d'état météo. Utilise 1 appel API par mise à jour.",
+          "enable_mobile_devices": "Active le suivi (device trackers) pour les téléphones mobiles avec géofencing. Utilise 1 appel API par mise à jour.",
+          "enable_air_comfort": "Active les capteurs de fraîcheur de l'air et de niveau de confort par pièce. Utilise 1 appel API par mise à jour.",
+          "enable_running_times": "Active les capteurs de temps de chauffe quotidien par pièce. Utilise 1 appel API par mise à jour."
+        }
+      }
+    }
+  },
+  "services": {
+    "set_temperature_offset": {
+      "name": "Définir l'écart de température",
+      "description": "Ajuste l'écart de température pour un appareil Tado X (vanne ou capteur) afin de calibrer les valeurs récupérées.",
+      "fields": {
+        "device_id": {
+          "name": "Appareil",
+          "description": "L'appareil Tado X à calibrer"
+        },
+        "offset": {
+          "name": "Écart de température",
+          "description": "Écart de température en °C. Les valeurs positives augmentent la valeur, les valeurs négatives la diminuent."
+        }
+      }
+    },
+    "add_meter_reading": {
+      "name": "Ajouter un relevé de compteur",
+      "description": "Envoi d'un relevé de compteur à Tado Energy IQ",
+      "fields": {
+        "reading": {
+          "name": "Relevé",
+          "description": "Valeur du relevé de compteur (entier)"
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date du relevé (format AAAA-MM-JJ, par défaut aujourd'hui)"
+        }
+      }
+    },
+    "set_eiq_tariff": {
+      "name": "Définir le prix de l'énergie",
+      "description": "Définit un prix de l'énergie dans Tado Energy IQ pour le calcul des coûts",
+      "fields": {
+        "tariff": {
+          "name": "Tarif",
+          "description": "Prix par unité (ex: 0.85 pour 0,85 €/m³)"
+        },
+        "unit": {
+          "name": "Unité",
+          "description": "Type d'unité d'énergie (m3 ou kWh)"
+        },
+        "start_date": {
+          "name": "Date de début",
+          "description": "Date de début du tarif (format AAAA-MM-JJ)"
+        },
+        "end_date": {
+          "name": "Date de fin",
+          "description": "Date de fin du tarif (format AAAA-MM-JJ)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "tado_x": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Maison",
+              "away": "Absent",
+              "auto": "Auto (Géofencing)",
+              "schedule": "Programmation"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "temperature": {
+        "name": "Température"
+      },
+      "humidity": {
+        "name": "Humidité"
+      },
+      "heating_power": {
+        "name": "Puissance de chauffe"
+      },
+      "heating_time_today": {
+        "name": "Temps de chauffe aujourd'hui"
+      },
+      "battery": {
+        "name": "Batterie",
+        "state": {
+          "normal": "Normale",
+          "low": "Faible"
+        }
+      },
+      "device_temperature": {
+        "name": "Température de l'appareil"
+      },
+      "api_calls_today": {
+        "name": "Appels API aujourd'hui"
+      },
+      "api_quota_remaining": {
+        "name": "Quota API restant"
+      },
+      "api_quota_limit": {
+        "name": "Limite de quota API"
+      },
+      "api_usage_percentage": {
+        "name": "Utilisation de l'API"
+      },
+      "api_reset_time": {
+        "name": "Heure de réinitialisation de l'API"
+      },
+      "outdoor_temperature": {
+        "name": "Température extérieure"
+      },
+      "solar_intensity": {
+        "name": "Intensité solaire"
+      },
+      "weather_state": {
+        "name": "État météo",
+        "state": {
+          "SUNNY": "Ensoleillé",
+          "CLOUDY": "Nuageux",
+          "CLOUDY_PARTLY": "Partiellement nuageux",
+          "CLOUDY_MOSTLY": "Très nuageux",
+          "NIGHT_CLEAR": "Nuit claire",
+          "NIGHT_CLOUDY": "Nuit nuageuse",
+          "RAIN": "Pluie",
+          "DRIZZLE": "Bruine",
+          "SNOW": "Neige",
+          "FOGGY": "Brouillard",
+          "THUNDERSTORMS": "Orages",
+          "WINDY": "Venteux"
+        }
+      },
+      "air_freshness": {
+        "name": "Niveau d'humidité",
+        "state": {
+          "humid": "Humide",
+          "comfy": "Confortable",
+          "dry": "Sec"
+        }
+      },
+      "comfort_level": {
+        "name": "Niveau de confort",
+        "state": {
+          "cold": "Froid",
+          "comfy": "Confortable",
+          "warm": "Chaud"
+        }
+      }
+    },
+    "binary_sensor": {
+      "window_open": {
+        "name": "Fenêtre ouverte"
+      },
+      "heating": {
+        "name": "Chauffage"
+      },
+      "overlay_active": {
+        "name": "Contrôle manuel"
+      },
+      "connectivity": {
+        "name": "Connectivité"
+      },
+      "battery_low": {
+        "name": "Batterie faible"
+      }
+    },
+    "switch": {
+      "child_lock": {
+        "name": "Sécurité enfant"
+      },
+      "open_window": {
+        "name": "Fenêtre ouverte"
+      }
+    },
+    "button": {
+      "boost_all": {
+        "name": "Booster tout"
+      },
+      "disable_all": {
+        "name": "Tout éteindre"
+      },
+      "resume_schedules": {
+        "name": "Reprendre les programmations"
+      }
+    },
+    "device_tracker": {
+      "mobile_device": {
+        "name": "Appareil mobile",
+        "state": {
+          "home": "Maison",
+          "away": "Absent",
+          "not_tracking": "Suivi désactivé",
+          "unknown": "Inconnu"
+        },
+        "state_attributes": {
+          "geofencing_enabled": {
+            "name": "Géofencing activé"
+          },
+          "at_home": {
+            "name": "À la maison"
+          },
+          "platform": {
+            "name": "Plateforme"
+          },
+          "os_version": {
+            "name": "Version de l'OS"
+          },
+          "model": {
+            "name": "Modèle"
+          },
+          "locale": {
+            "name": "Paramètres régionaux"
+          }
+        }
+      }
+    }
+  }
+}
