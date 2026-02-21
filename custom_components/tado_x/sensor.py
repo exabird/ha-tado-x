@@ -339,6 +339,9 @@ async def async_setup_entry(
 
     # Add home-level sensors (API monitoring)
     for description in HOME_SENSORS:
+        # Skip dhw_state if hot water feature is disabled
+        if description.key == "dhw_state" and not coordinator.enable_hot_water:
+            continue
         entities.append(TadoXHomeSensor(coordinator, description))
 
     # Add weather sensors (only if feature is enabled)
