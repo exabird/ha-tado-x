@@ -222,6 +222,7 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         if room.next_schedule_change:
             attrs["next_schedule_change"] = room.next_schedule_change
             attrs["next_schedule_temperature"] = room.next_schedule_temperature
+            attrs["next_schedule_power"] = room.next_schedule_power == "ON"
 
         if room.open_window_detected:
             attrs["open_window_detected"] = True

@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -20,6 +21,33 @@ from .const import DOMAIN
 from .coordinator import TadoXDataUpdateCoordinator, TadoXDevice, TadoXRoom
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _is_schedule_valid(room: TadoXRoom) -> bool:
+    """Check if the next schedule time is valid (not in the past)."""
+    if not room.next_schedule_change:
+        return False
+
+    try:
+        # Parse the ISO timestamp
+        schedule_time = datetime.fromisoformat(room.next_schedule_change.replace('Z', '+00:00'))
+        # Compare with current time (timezone-aware)
+        now = datetime.now(schedule_time.tzinfo)
+
+        # Return False if the time is in the past
+        return schedule_time >= now
+    except (ValueError, AttributeError):
+        # If parsing fails, consider it invalid
+        return False
+
+
+def _get_next_schedule_power_on(room: TadoXRoom) -> bool | None:
+    """Get next schedule power state as boolean, or None if schedule is in the past."""
+    if not _is_schedule_valid(room):
+        return None
+    if room.next_schedule_power is None:
+        return None
+    return room.next_schedule_power == "ON"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -54,6 +82,13 @@ ROOM_BINARY_SENSORS: tuple[TadoXRoomBinarySensorEntityDescription, ...] = (
         translation_key="overlay_active",
         icon="mdi:hand-back-left",
         value_fn=lambda room: room.manual_control_active,
+    ),
+    TadoXRoomBinarySensorEntityDescription(
+        key="next_schedule_power",
+        translation_key="next_schedule_power",
+        device_class=BinarySensorDeviceClass.POWER,
+        icon="mdi:power",
+        value_fn=_get_next_schedule_power_on,
     ),
 )
 
@@ -234,6 +269,7 @@ class TadoXDeviceBinarySensor(CoordinatorEntity[TadoXDataUpdateCoordinator], Bin
             name=device_name,
             manufacturer="Tado",
             model=device_type_models.get(device.device_type, device.device_type),
+            serial_number=device.serial_number,
             sw_version=device.firmware_version,
             via_device=via_device_id,
         )

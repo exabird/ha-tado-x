@@ -134,6 +134,9 @@
       "humidity": { "name": "Umidità" },
       "heating_power": { "name": "Potenza di riscaldamento" },
       "heating_time_today": { "name": "Tempo di riscaldamento oggi" },
+      "next_schedule_start": { "name": "Inizio programmazione successiva" },
+      "next_schedule_temperature": { "name": "Temperatura programmazione successiva" },
+      "next_time_block": { "name": "Blocco temporale successivo" },
       "battery": {
         "name": "Batteria",
         "state": {
@@ -209,6 +212,7 @@
       "window_open": { "name": "Finestra aperta" },
       "heating": { "name": "Riscaldamento" },
       "overlay_active": { "name": "Controllo manuale" },
+      "next_schedule_power": { "name": "Potenza programmazione successiva" },
       "connectivity": { "name": "Connettività" },
       "battery_low": { "name": "Batteria scarica" }
     },

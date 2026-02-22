@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import TadoXApi, TadoXApiError, TadoXAuthError, TadoXRateLimitError
@@ -15,6 +16,8 @@ from .const import DOMAIN, SCAN_INTERVAL_AUTO_ASSIST, SCAN_INTERVAL_FREE_TIER
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
+
+_STORAGE_VERSION = 1
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +58,8 @@ class TadoXRoom:
     open_window_detected: bool = False
     next_schedule_change: str | None = None
     next_schedule_temperature: float | None = None
+    next_schedule_power: str | None = None
+    next_time_block: str | None = None
     devices: list[TadoXDevice] = field(default_factory=list)
     # Running times data (heating duration today)
     running_time_today_seconds: int = 0
@@ -127,6 +132,82 @@ class TadoXData:
     has_flow_temp_control: bool = False
 
 
+def _serialize_tado_data(data: TadoXData) -> dict:
+    """Convert TadoXData to a JSON-serializable dict."""
+    d = asdict(data)
+    # dataclasses.asdict() leaves datetime objects unconverted
+    if data.api_reset_time is not None:
+        d["api_reset_time"] = data.api_reset_time.isoformat()
+    if data.rate_limit_reset is not None:
+        d["rate_limit_reset"] = data.rate_limit_reset.isoformat()
+    return d
+
+
+def _deserialize_tado_data(d: dict, home_id: int, home_name: str) -> TadoXData:
+    """Reconstruct TadoXData from a cached dict."""
+    rooms: dict[int, TadoXRoom] = {}
+    for room_id_str, room_d in d.get("rooms", {}).items():
+        room_d = dict(room_d)
+        devices_list = [TadoXDevice(**dev) for dev in room_d.pop("devices", [])]
+        room = TadoXRoom(**room_d)
+        room.devices = devices_list
+        rooms[int(room_id_str)] = room
+
+    devices: dict[str, TadoXDevice] = {
+        serial: TadoXDevice(**dev_d)
+        for serial, dev_d in d.get("devices", {}).items()
+    }
+
+    other_devices = [TadoXDevice(**dev) for dev in d.get("other_devices", [])]
+
+    weather_d = d.get("weather")
+    weather = TadoXWeather(**weather_d) if weather_d else None
+
+    mobile_devices: dict[int, TadoXMobileDevice] = {
+        int(k): TadoXMobileDevice(**v)
+        for k, v in d.get("mobile_devices", {}).items()
+    }
+
+    air_comfort: dict[int, TadoXRoomAirComfort] = {
+        int(k): TadoXRoomAirComfort(**v)
+        for k, v in d.get("air_comfort", {}).items()
+    }
+
+    api_reset_time: datetime | None = None
+    if raw_reset := d.get("api_reset_time"):
+        try:
+            api_reset_time = datetime.fromisoformat(raw_reset)
+        except (ValueError, TypeError):
+            pass
+
+    return TadoXData(
+        home_id=home_id,
+        home_name=home_name,
+        rooms=rooms,
+        devices=devices,
+        other_devices=other_devices,
+        presence=d.get("presence"),
+        presence_locked=d.get("presence_locked", False),
+        api_calls_today=d.get("api_calls_today", 0),
+        api_reset_time=api_reset_time,
+        has_auto_assist=d.get("has_auto_assist", False),
+        api_quota_limit=d.get("api_quota_limit"),
+        api_quota_remaining=d.get("api_quota_remaining"),
+        weather=weather,
+        mobile_devices=mobile_devices,
+        running_times=d.get("running_times", {}),
+        air_comfort=air_comfort,
+        rate_limited=False,  # Never restore a rate-limited state from cache
+        rate_limit_reset=None,
+        max_flow_temperature=d.get("max_flow_temperature"),
+        flow_temp_min=d.get("flow_temp_min"),
+        flow_temp_max=d.get("flow_temp_max"),
+        flow_temp_auto_adaptation=d.get("flow_temp_auto_adaptation", False),
+        flow_temp_auto_value=d.get("flow_temp_auto_value"),
+        has_flow_temp_control=d.get("has_flow_temp_control", False),
+    )
+
+
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
     """Class to manage fetching Tado X data."""
 
@@ -136,6 +217,7 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         api: TadoXApi,
         home_id: int,
         home_name: str,
+        entry_id: str,
         save_api_stats_callback: Callable[[], None] | None = None,
         scan_interval: int | None = None,
         enable_weather: bool = True,
@@ -172,6 +254,10 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         self.enable_running_times = enable_running_times
         self.enable_flow_temp = enable_flow_temp
 
+        # Persistent cache using HA storage
+        self._store: Store = Store(hass, _STORAGE_VERSION, f"{DOMAIN}.{entry_id}")
+        self._cache_checked = False  # True after the first update has run
+
         _LOGGER.info(
             "Tado X coordinator initialized with %d second update interval (%s tier)",
             scan_interval,
@@ -204,6 +290,20 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
 
     async def _async_update_data(self) -> TadoXData:
         """Fetch data from Tado X API."""
+
+        # On the very first call (startup), return cached data if available so that
+        # entities can be restored immediately without consuming any API quota.
+        if not self._cache_checked:
+            self._cache_checked = True
+            try:
+                cached = await self._store.async_load()
+                if cached:
+                    data = _deserialize_tado_data(cached, self.home_id, self.home_name)
+                    _LOGGER.debug("Loaded Tado X data from cache; skipping startup API fetch")
+                    return data
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("Ignoring invalid cache, will fetch from API: %s", err)
+
         try:
             # Get rooms with current state (required)
             rooms_data = await self.api.get_rooms()
@@ -293,6 +393,11 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 next_change_setting = next_change.get("setting") or {}
                 next_change_temp_obj = next_change_setting.get("temperature") or {}
                 next_change_temp = next_change_temp_obj.get("value")
+                next_change_power = next_change_setting.get("power")
+
+                # Get next time block (use 'or {}' to handle None values)
+                next_time_block_obj = room_data.get("nextTimeBlock") or {}
+                next_time_block = next_time_block_obj.get("start")
 
                 # Get heating power and connection (use 'or {}' to handle None values)
                 heating_power_data = room_data.get("heatingPower") or {}
@@ -314,6 +419,8 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     open_window_detected=room_data.get("openWindow") is not None,
                     next_schedule_change=next_change_time,
                     next_schedule_temperature=next_change_temp,
+                    next_schedule_power=next_change_power,
+                    next_time_block=next_time_block,
                 )
 
                 # Add devices for this room
@@ -499,6 +606,12 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             # Save API stats for persistence
             if self._save_api_stats_callback:
                 self._save_api_stats_callback()
+
+            # Persist data so the next startup can skip the initial API fetch
+            try:
+                await self._store.async_save(_serialize_tado_data(data))
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("Failed to persist coordinator cache: %s", err)
 
             return data
 

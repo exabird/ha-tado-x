@@ -34,9 +34,11 @@ DEFAULT_SCAN_INTERVAL: Final = 30  # seconds (legacy, use tier-specific)
 API_QUOTA_FREE_TIER: Final = 100  # requests per day without Auto-Assist
 API_QUOTA_PREMIUM: Final = 20000  # requests per day with Auto-Assist
 API_CALLS_PER_UPDATE: Final = 6  # get_rooms + get_rooms_and_devices + get_home_state + get_weather + get_mobile_devices + get_running_times
+DEFAULT_API_RESET_TIME_OF_DAY: Final = "12:00:00"  # Default API reset time in HH:mm:ss format (UTC)
 
 # Config keys for options
 CONF_SCAN_INTERVAL: Final = "scan_interval"
+CONF_API_RESET_TIME_OF_DAY: Final = "api_reset_time_of_day"
 
 # Feature toggles for optional API calls
 CONF_ENABLE_WEATHER: Final = "enable_weather"

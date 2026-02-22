@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -93,6 +94,73 @@ def _format_running_time_hours(room: TadoXRoom) -> float:
     return round(seconds / 3600, 1)
 
 
+def _is_schedule_valid(room: TadoXRoom) -> bool:
+    """Check if the next schedule time is valid (not in the past)."""
+    if not room.next_schedule_change:
+        return False
+
+    try:
+        # Parse the ISO timestamp
+        schedule_time = datetime.fromisoformat(room.next_schedule_change.replace('Z', '+00:00'))
+        # Compare with current time (timezone-aware)
+        now = datetime.now(schedule_time.tzinfo)
+
+        # Return False if the time is in the past
+        return schedule_time >= now
+    except (ValueError, AttributeError):
+        # If parsing fails, consider it invalid
+        return False
+
+
+def _get_next_schedule_start(room: TadoXRoom) -> datetime | None:
+    """Get next schedule start time, or None if it's in the past."""
+    if not room.next_schedule_change:
+        return None
+
+    try:
+        # Parse the ISO timestamp
+        schedule_time = datetime.fromisoformat(room.next_schedule_change.replace('Z', '+00:00'))
+        # Compare with current time (timezone-aware)
+        now = datetime.now(schedule_time.tzinfo)
+
+        # Return None if the time is in the past
+        if schedule_time < now:
+            return None
+
+        return schedule_time
+    except (ValueError, AttributeError):
+        # If parsing fails, return None
+        return None
+
+
+def _get_next_schedule_temperature(room: TadoXRoom) -> float | None:
+    """Get next schedule temperature, or None if schedule is in the past."""
+    if not _is_schedule_valid(room):
+        return None
+    return room.next_schedule_temperature
+
+
+def _get_next_time_block(room: TadoXRoom) -> datetime | None:
+    """Get next time block start, or None if it's in the past."""
+    if not room.next_time_block:
+        return None
+
+    try:
+        # Parse the ISO timestamp
+        time_block_time = datetime.fromisoformat(room.next_time_block.replace('Z', '+00:00'))
+        # Compare with current time (timezone-aware)
+        now = datetime.now(time_block_time.tzinfo)
+
+        # Return None if the time is in the past
+        if time_block_time < now:
+            return None
+
+        return time_block_time
+    except (ValueError, AttributeError):
+        # If parsing fails, return None
+        return None
+
+
 ROOM_SENSORS: tuple[TadoXRoomSensorEntityDescription, ...] = (
     TadoXRoomSensorEntityDescription(
         key="temperature",
@@ -126,6 +194,29 @@ ROOM_SENSORS: tuple[TadoXRoomSensorEntityDescription, ...] = (
         state_class=SensorStateClass.TOTAL,
         icon="mdi:clock-time-four",
         value_fn=_format_running_time_hours,
+    ),
+    TadoXRoomSensorEntityDescription(
+        key="next_schedule_start",
+        translation_key="next_schedule_start",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-outline",
+        value_fn=_get_next_schedule_start,
+    ),
+    TadoXRoomSensorEntityDescription(
+        key="next_schedule_temperature",
+        translation_key="next_schedule_temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:thermometer",
+        value_fn=_get_next_schedule_temperature,
+    ),
+    TadoXRoomSensorEntityDescription(
+        key="next_time_block",
+        translation_key="next_time_block",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:timeline-clock",
+        value_fn=_get_next_time_block,
     ),
 )
 
@@ -572,6 +663,7 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
             name=device_name,
             manufacturer="Tado",
             model=device_type_models.get(device.device_type, device.device_type),
+            serial_number=device.serial_number,
             sw_version=device.firmware_version,
             via_device=via_device_id,
         )

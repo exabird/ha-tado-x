@@ -87,6 +87,10 @@ set_eiq_tariff:
       selector:
         text:
 
+refresh_data:
+  name: Refresh data
+  description: Force an immediate data refresh from the Tado API
+
 set_climate_timer:
   name: Set climate timer
   description: Set a room temperature for a specific duration. Useful for temporary overrides like a quick boost or extending heating.

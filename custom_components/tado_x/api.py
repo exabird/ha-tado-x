@@ -17,6 +17,7 @@ from .const import (
     TADO_MINDER_API_URL,
     TADO_MY_API_URL,
     TADO_TOKEN_URL,
+    DEFAULT_API_RESET_TIME_OF_DAY
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ class TadoXApi:
         api_reset_time: datetime | None = None,
         has_auto_assist: bool = False,
         on_token_refresh: callable | None = None,
+        api_reset_time_of_day: str = DEFAULT_API_RESET_TIME_OF_DAY,
     ) -> None:
         """Initialize the API client."""
         self._session = session
@@ -61,9 +63,15 @@ class TadoXApi:
         self._home_id: int | None = None
         self._has_auto_assist = has_auto_assist
         self._on_token_refresh = on_token_refresh
+        self._lock = asyncio.Lock()
+        self._token_refresh_task: asyncio.Task | None = None
+        self._last_refresh_time: datetime | None = None
+
+        # Parse reset time of day (format: "HH:mm:ss")
+        self._reset_hour, self._reset_minute, self._reset_second = self._parse_time_of_day(api_reset_time_of_day)
 
         # Initialize API call tracking with persistence support
-        # Tado resets quotas at 12:00 UTC (noon), not midnight
+        # Tado resets quotas at configured time UTC (default: 12:00 UTC/noon)
         now = datetime.now(timezone.utc)
         default_reset_time = self._calculate_next_reset_time(now)
 
@@ -135,12 +143,46 @@ class TadoXApi:
         """Return the API quota remaining from headers (if available)."""
         return self._api_quota_remaining
 
+    def set_reset_time_of_day(self, time_str: str) -> None:
+        """Update the API reset time of day.
+
+        Args:
+            time_str: Time in "HH:mm:ss" format (e.g., "12:00:00")
+        """
+        self._reset_hour, self._reset_minute, self._reset_second = self._parse_time_of_day(time_str)
+        # Recalculate the next reset time with the new settings
+        now = datetime.now(timezone.utc)
+        self._api_call_reset_time = self._calculate_next_reset_time(now)
+
     @staticmethod
-    def _calculate_next_reset_time(now: datetime) -> datetime:
+    def _parse_time_of_day(time_str: str) -> tuple[int, int, int]:
+        """Parse time string in HH:mm:ss format.
+
+        Args:
+            time_str: Time in "HH:mm:ss" format (e.g., "12:00:00")
+
+        Returns:
+            Tuple of (hour, minute, second)
+        """
+        try:
+            parts = time_str.split(":")
+            if len(parts) != 3:
+                raise ValueError(f"Invalid time format: {time_str}")
+            hour = int(parts[0])
+            minute = int(parts[1])
+            second = int(parts[2])
+            if not (0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= second <= 59):
+                raise ValueError(f"Invalid time values: {time_str}")
+            return hour, minute, second
+        except (ValueError, AttributeError) as err:
+            _LOGGER.warning("Invalid time format '%s', using default 12:00:00: %s", time_str, err)
+            return 12, 0, 0
+
+    def _calculate_next_reset_time(self, now: datetime) -> datetime:
         """Calculate the next API quota reset time.
 
-        Tado resets quotas at 12:00 UTC (noon). This method calculates
-        the next reset time based on the current time.
+        Tado resets quotas at configured time UTC (default: 12:00:00 UTC).
+        This method calculates the next reset time based on the current time.
 
         Args:
             now: Current datetime in UTC
@@ -148,12 +190,15 @@ class TadoXApi:
         Returns:
             Next reset time as datetime in UTC
         """
-        # Reset time is 12:00 UTC
-        reset_hour = 12
-        today_reset = now.replace(hour=reset_hour, minute=0, second=0, microsecond=0)
+        today_reset = now.replace(
+            hour=self._reset_hour,
+            minute=self._reset_minute,
+            second=self._reset_second,
+            microsecond=0
+        )
 
         if now >= today_reset:
-            # Already past today's reset, next reset is tomorrow at noon
+            # Already past today's reset, next reset is tomorrow
             return today_reset + timedelta(days=1)
         else:
             # Today's reset hasn't happened yet
@@ -259,6 +304,7 @@ class TadoXApi:
                         self._refresh_token = data.get("refresh_token")
                         expires_in = data.get("expires_in", 600)
                         self._token_expiry = datetime.now() + timedelta(seconds=expires_in)
+                        self._schedule_token_refresh()
                         return True
 
                     # Authorization pending, continue polling
@@ -301,16 +347,56 @@ class TadoXApi:
                 self._refresh_token = data.get("refresh_token", self._refresh_token)
                 expires_in = data.get("expires_in", 600)
                 self._token_expiry = datetime.now() + timedelta(seconds=expires_in)
+                self._last_refresh_time = datetime.now()
 
                 # Persist tokens immediately after refresh to prevent auth loss on restart
                 if self._on_token_refresh:
                     self._on_token_refresh()
 
                 _LOGGER.debug("Token refreshed successfully, expires in %s seconds", expires_in)
+                self._schedule_token_refresh()
                 return True
 
         except aiohttp.ClientError as err:
             raise TadoXAuthError(f"Network error during token refresh: {err}") from err
+
+    def _schedule_token_refresh(self) -> None:
+        """Schedule a background token refresh 60 seconds before the token expires."""
+        if self._token_refresh_task and not self._token_refresh_task.done():
+            self._token_refresh_task.cancel()
+
+        if not self._token_expiry:
+            return
+
+        delay = max(0.0, (self._token_expiry - timedelta(seconds=120) - datetime.now()).total_seconds())
+        self._token_refresh_task = asyncio.ensure_future(self._background_token_refresh(delay))
+        _LOGGER.debug("Scheduled background token refresh in %.0f seconds", delay)
+
+    async def _background_token_refresh(self, delay: float) -> None:
+        """Sleep until shortly before token expiry, then refresh proactively."""
+        try:
+            await asyncio.sleep(delay)
+            async with self._lock:
+                # Re-check after acquiring the lock: a concurrent _request() call may have
+                # already refreshed the token while we were sleeping or waiting for the lock.
+                if self._token_expiry and datetime.now() < self._token_expiry - timedelta(seconds=120):
+                    _LOGGER.debug("Token already refreshed by a request; rescheduling background refresh")
+                    self._schedule_token_refresh()
+                    return
+                _LOGGER.debug("Background token refresh triggered")
+                await self.refresh_access_token()
+        except asyncio.CancelledError:
+            pass
+        except TadoXAuthError as err:
+            _LOGGER.error("Background token refresh failed: %s", err)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error("Unexpected error in background token refresh: %s", err)
+
+    def close(self) -> None:
+        """Cancel any pending background tasks."""
+        if self._token_refresh_task and not self._token_refresh_task.done():
+            self._token_refresh_task.cancel()
+            self._token_refresh_task = None
 
     async def _ensure_valid_token(self) -> None:
         """Ensure we have a valid access token."""
@@ -327,72 +413,87 @@ class TadoXApi:
         url: str,
         json_data: dict | None = None,
     ) -> dict | list | None:
-        """Make an authenticated API request."""
-        await self._ensure_valid_token()
+        async with self._lock:
+            """Make an authenticated API request."""
+            await self._ensure_valid_token()
 
-        # Track API call
-        self._api_calls_today += 1
+            # Track API call
+            self._api_calls_today += 1
 
-        # Reset counter if past reset time (noon UTC)
-        now = datetime.now(timezone.utc)
-        if now >= self._api_call_reset_time:
-            self._api_calls_today = 1
-            self._api_call_reset_time = self._calculate_next_reset_time(now)
+            # Reset counter if past reset time (noon UTC)
+            now = datetime.now(timezone.utc)
+            if now >= self._api_call_reset_time:
+                self._api_calls_today = 1
+                self._api_call_reset_time = self._calculate_next_reset_time(now)
 
-        headers = {
-            "Authorization": f"Bearer {self._access_token}",
-            "Content-Type": "application/json",
-        }
+            headers = {
+                "Authorization": f"Bearer {self._access_token}",
+                "Content-Type": "application/json",
+            }
 
-        try:
-            async with self._session.request(
-                method,
-                url,
-                headers=headers,
-                json=json_data,
-            ) as response:
-                # Parse rate limit headers from Tado API
-                self._parse_rate_limit_headers(response.headers)
+            try:
+                async with self._session.request(
+                    method,
+                    url,
+                    headers=headers,
+                    json=json_data,
+                ) as response:
+                    # Parse rate limit headers from Tado API
+                    self._parse_rate_limit_headers(response.headers)
 
-                if response.status == 401:
-                    # Try to refresh token and retry
-                    await self.refresh_access_token()
-                    headers["Authorization"] = f"Bearer {self._access_token}"
-                    async with self._session.request(
-                        method,
-                        url,
-                        headers=headers,
-                        json=json_data,
-                    ) as retry_response:
-                        if retry_response.status != 200:
-                            text = await retry_response.text()
-                            raise TadoXApiError(f"API error: {retry_response.status} - {text}")
-                        if retry_response.content_length == 0:
-                            return None
-                        return await retry_response.json()
+                    if response.status == 401:
+                        # If the token was refreshed very recently (by _ensure_valid_token()
+                        # above, OR by the background refresh task just before this request),
+                        # the 401 is likely a server propagation delay — the brand-new access
+                        # token hasn't reached all Tado API nodes yet.  Immediately using the
+                        # brand-new *refresh* token in that window returns 400.
+                        # Instead, wait briefly and retry with the already-fresh access token.
+                        # Only call refresh_access_token() when no recent refresh has occurred,
+                        # meaning the token genuinely expired.
+                        recently_refreshed = (
+                            self._last_refresh_time is not None
+                            and datetime.now() - self._last_refresh_time < timedelta(seconds=30)
+                        )
+                        if recently_refreshed:
+                            await asyncio.sleep(1)
+                        else:
+                            await self.refresh_access_token()
+                        headers["Authorization"] = f"Bearer {self._access_token}"
+                        async with self._session.request(
+                            method,
+                            url,
+                            headers=headers,
+                            json=json_data,
+                        ) as retry_response:
+                            if retry_response.status != 200:
+                                text = await retry_response.text()
+                                raise TadoXApiError(f"API error: {retry_response.status} - {text}")
+                            if retry_response.content_length == 0:
+                                return None
+                            return await retry_response.json()
 
-                if response.status == 429:
-                    # Rate limited - raise specific exception with reset time
-                    _LOGGER.warning(
-                        "Rate limit exceeded (429). Quota remaining: %s, Reset time: %s",
-                        self._api_quota_remaining,
-                        self._api_call_reset_time,
-                    )
-                    raise TadoXRateLimitError(
-                        "API rate limit exceeded (429). Please wait for quota reset.",
-                        reset_time=self._api_call_reset_time,
-                    )
+                    if response.status == 429:
+                        # Rate limited - raise specific exception with reset time
+                        _LOGGER.warning(
+                            "Rate limit exceeded (429). Quota remaining: %s, Reset time: %s",
+                            self._api_quota_remaining,
+                            self._api_call_reset_time,
+                        )
+                        raise TadoXRateLimitError(
+                            "API rate limit exceeded (429). Please wait for quota reset.",
+                            reset_time=self._api_call_reset_time,
+                        )
 
-                if response.status not in (200, 204):
-                    text = await response.text()
-                    raise TadoXApiError(f"API error: {response.status} - {text}")
+                    if response.status not in (200, 204):
+                        text = await response.text()
+                        raise TadoXApiError(f"API error: {response.status} - {text}")
 
-                if response.content_length == 0 or response.status == 204:
-                    return None
-                return await response.json()
+                    if response.content_length == 0 or response.status == 204:
+                        return None
+                    return await response.json()
 
-        except aiohttp.ClientError as err:
-            raise TadoXApiError(f"Network error: {err}") from err
+            except aiohttp.ClientError as err:
+                raise TadoXApiError(f"Network error: {err}") from err
 
     # My Tado API endpoints (user info)
     async def get_me(self) -> dict[str, Any]:

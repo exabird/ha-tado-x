@@ -11,7 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_DEVICE_ID, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
-from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TadoXApi, TadoXApiError, TadoXAuthError
@@ -19,6 +19,7 @@ from .const import (
     CONF_ACCESS_TOKEN,
     CONF_API_CALLS_TODAY,
     CONF_API_RESET_TIME,
+    CONF_API_RESET_TIME_OF_DAY,
     CONF_ENABLE_AIR_COMFORT,
     CONF_ENABLE_FLOW_TEMP,
     CONF_ENABLE_MOBILE_DEVICES,
@@ -30,6 +31,7 @@ from .const import (
     CONF_REFRESH_TOKEN,
     CONF_SCAN_INTERVAL,
     CONF_TOKEN_EXPIRY,
+    DEFAULT_API_RESET_TIME_OF_DAY,
     DOMAIN,
     PLATFORMS,
 )
@@ -52,6 +54,7 @@ ATTR_START_DATE: Final = "start_date"
 ATTR_END_DATE: Final = "end_date"
 
 SERVICE_SET_CLIMATE_TIMER: Final = "set_climate_timer"
+SERVICE_REFRESH_DATA: Final = "refresh_data"
 ATTR_ENTITY_ID: Final = "entity_id"
 ATTR_TEMPERATURE: Final = "temperature"
 ATTR_DURATION: Final = "duration"
@@ -118,6 +121,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except (ValueError, TypeError):
             pass
 
+    # Get configured reset time of day (HH:mm format)
+    api_reset_time_of_day = entry.data.get(CONF_API_RESET_TIME_OF_DAY, DEFAULT_API_RESET_TIME_OF_DAY)
+
     # Create a mutable container for the API reference (needed for callback closure)
     api_container: dict[str, TadoXApi] = {}
 
@@ -146,6 +152,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api_reset_time=api_reset_time,
         has_auto_assist=entry.data.get(CONF_HAS_AUTO_ASSIST, False),
         on_token_refresh=save_tokens,
+        api_reset_time_of_day=api_reset_time_of_day,
     )
     api_container["api"] = api
 
@@ -204,6 +211,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api=api,
         home_id=home_id,
         home_name=home_name,
+        entry_id=entry.entry_id,
         save_api_stats_callback=save_api_stats,
         scan_interval=configured_scan_interval if configured_scan_interval else None,
         enable_weather=enable_weather,
@@ -222,9 +230,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    def get_coordinator() -> TadoXDataUpdateCoordinator:
+        """Return the current coordinator, raising if the integration is not loaded."""
+        coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        if coordinator is None:
+            raise HomeAssistantError("Tado X integration is not currently loaded")
+        return coordinator
+
     # Register services
     async def async_set_temperature_offset(call: ServiceCall) -> None:
         """Handle set_temperature_offset service call."""
+        coordinator = get_coordinator()
+
         device_id = call.data[ATTR_DEVICE_ID]
         offset = call.data[ATTR_OFFSET]
 
@@ -259,18 +276,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         try:
             await coordinator.api.set_temperature_offset(device_serial, offset)
-            await coordinator.async_request_refresh()
+
+            # Update local temperature offset instead of refreshing from API
+            if coordinator.data and device_serial in coordinator.data.devices:
+                coordinator.data.devices[device_serial].temperature_offset = offset
+
+                api = coordinator.api
+                coordinator.data.api_calls_today = api.api_calls_today
+                coordinator.data.api_reset_time = api.api_reset_time
+                coordinator.data.has_auto_assist = api.has_auto_assist
+                coordinator.data.api_quota_limit = api.api_quota_limit
+                coordinator.data.api_quota_remaining = api.api_quota_remaining
+
+                if coordinator._save_api_stats_callback:
+                    coordinator._save_api_stats_callback()
+
+                coordinator.async_update_listeners()
+            else:
+                await coordinator.async_request_refresh()
+
             _LOGGER.info(
                 "Set temperature offset for device %s to %.1f°C",
                 device_serial,
                 offset,
             )
-        except Exception as err:
+        except TadoXAuthError as err:
+            # Trigger reauthentication flow instead of just failing
+            # This will prompt the user to re-authenticate via the UI
+            _LOGGER.error(
+                "Authentication error while setting temperature offset for device %s: %s",
+                device_serial,
+                err,
+            )
+            raise ConfigEntryAuthFailed(
+                f"Authentication failed: {err}. Please re-authenticate."
+            ) from err
+        except TadoXApiError as err:
             _LOGGER.error(
                 "Failed to set temperature offset for device %s: %s",
                 device_serial,
                 err,
             )
+            raise HomeAssistantError(f"Failed to set temperature offset for device: {err}") from err
 
     # Register temperature offset service (only once per integration)
     if not hass.services.has_service(DOMAIN, SERVICE_SET_TEMPERATURE_OFFSET):
@@ -283,6 +330,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def async_add_meter_reading(call: ServiceCall) -> None:
         """Handle add_meter_reading service call."""
+        coordinator = get_coordinator()
+
         reading = call.data[ATTR_READING]
         date = call.data.get(ATTR_DATE)
 
@@ -304,6 +353,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def async_set_eiq_tariff(call: ServiceCall) -> None:
         """Handle set_eiq_tariff service call."""
+        coordinator = get_coordinator()
+
         tariff = call.data[ATTR_TARIFF]
         unit = call.data[ATTR_UNIT]
         start_date = call.data.get(ATTR_START_DATE)
@@ -327,12 +378,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def async_set_climate_timer(call: ServiceCall) -> None:
         """Handle set_climate_timer service call."""
+        coordinator = get_coordinator()
+
         entity_id = call.data[ATTR_ENTITY_ID]
         temperature = call.data[ATTR_TEMPERATURE]
         duration_minutes = call.data[ATTR_DURATION]
 
         # Get the entity from registry
-        from homeassistant.helpers import entity_registry as er
         entity_registry = er.async_get(hass)
         entity_entry = entity_registry.async_get(entity_id)
 
@@ -397,6 +449,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SERVICE_SET_CLIMATE_TIMER_SCHEMA,
         )
 
+    async def async_refresh_data(call: ServiceCall) -> None:
+        """Handle refresh_data service call."""
+        await get_coordinator().async_request_refresh()
+
+    # Register refresh data service (only once per integration)
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_DATA):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_DATA,
+            async_refresh_data,
+        )
+
     # Create the "Home" device before loading platforms to ensure via_device references work
     # This prevents deprecation warnings about via_device referencing non-existing devices
     device_registry_instance = dr.async_get(hass)
@@ -416,7 +480,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator.api.close()
 
     return unload_ok
 

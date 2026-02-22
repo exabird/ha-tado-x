@@ -10,11 +10,13 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TadoXApi, TadoXAuthError
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_API_RESET_TIME_OF_DAY,
     CONF_ENABLE_AIR_COMFORT,
     CONF_ENABLE_FLOW_TEMP,
     CONF_ENABLE_MOBILE_DEVICES,
@@ -26,6 +28,7 @@ from .const import (
     CONF_REFRESH_TOKEN,
     CONF_SCAN_INTERVAL,
     CONF_TOKEN_EXPIRY,
+    DEFAULT_API_RESET_TIME_OF_DAY,
     DOMAIN,
     SCAN_INTERVAL_AUTO_ASSIST,
     SCAN_INTERVAL_FREE_TIER,
@@ -262,9 +265,14 @@ class TadoXOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             has_auto_assist = user_input[CONF_HAS_AUTO_ASSIST]
             custom_interval = user_input.get(CONF_SCAN_INTERVAL)
+
+            # Time selector returns HH:MM:SS format, store as-is
+            api_reset_time_of_day = user_input.get(CONF_API_RESET_TIME_OF_DAY, DEFAULT_API_RESET_TIME_OF_DAY)
 
             # Get feature toggles
             enable_weather = user_input.get(CONF_ENABLE_WEATHER, has_auto_assist)
@@ -287,6 +295,7 @@ class TadoXOptionsFlow(OptionsFlow):
                 **self.config_entry.data,
                 CONF_HAS_AUTO_ASSIST: has_auto_assist,
                 CONF_SCAN_INTERVAL: scan_interval,
+                CONF_API_RESET_TIME_OF_DAY: api_reset_time_of_day,
                 CONF_ENABLE_WEATHER: enable_weather,
                 CONF_ENABLE_MOBILE_DEVICES: enable_mobile_devices,
                 CONF_ENABLE_AIR_COMFORT: enable_air_comfort,
@@ -302,6 +311,7 @@ class TadoXOptionsFlow(OptionsFlow):
             if self.config_entry.entry_id in self.hass.data.get(DOMAIN, {}):
                 coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
                 coordinator.api.has_auto_assist = has_auto_assist
+                coordinator.api.set_reset_time_of_day(api_reset_time_of_day)
                 coordinator.update_scan_interval(scan_interval)
                 # Update feature flags
                 coordinator.enable_weather = enable_weather
@@ -310,10 +320,15 @@ class TadoXOptionsFlow(OptionsFlow):
                 coordinator.enable_running_times = enable_running_times
                 coordinator.enable_flow_temp = enable_flow_temp
 
+                if coordinator.data:
+                    coordinator.data.api_reset_time = coordinator.api.api_reset_time
+                    coordinator.async_update_listeners()
+
             return self.async_create_entry(title="", data={})
 
         current_auto_assist = self.config_entry.data.get(CONF_HAS_AUTO_ASSIST, False)
         current_interval = self.config_entry.data.get(CONF_SCAN_INTERVAL, 0)
+        current_api_reset_time = self.config_entry.data.get(CONF_API_RESET_TIME_OF_DAY, DEFAULT_API_RESET_TIME_OF_DAY)
 
         # Feature toggles - default to True for Auto-Assist, False for free tier
         # If already configured, use the stored value
@@ -342,6 +357,10 @@ class TadoXOptionsFlow(OptionsFlow):
                         CONF_SCAN_INTERVAL,
                         default=current_interval if current_interval > 0 else default_interval,
                     ): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
+                    vol.Optional(
+                        CONF_API_RESET_TIME_OF_DAY,
+                        default=current_api_reset_time,
+                    ): selector.TimeSelector(),
                     vol.Required(
                         CONF_ENABLE_WEATHER,
                         default=current_enable_weather,
@@ -364,4 +383,5 @@ class TadoXOptionsFlow(OptionsFlow):
                     ): bool,
                 }
             ),
+            errors=errors,
         )
