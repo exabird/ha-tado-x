@@ -143,6 +143,15 @@
       },
       "device_temperature": { "name": "Temperatura dispositivo" },
       "temperature_offset": { "name": "Offset temperatura" },
+      "control_mode": {
+        "name": "Modalità controllo",
+        "state": {
+          "GAS_BOILER": "Predefinito (Caldaia a gas)",
+          "UNDERFLOOR_HEATING": "Riscaldamento a pavimento",
+          "HEAT_PUMP": "Pompa di calore",
+          "NO_TEMPERATURE_CONTROL": "Su richiesta riscaldamento, sempre acceso"
+        }
+      },
       "api_calls_today": { "name": "Chiamate API oggi" },
       "api_quota_remaining": { "name": "Quota API rimanente" },
       "api_quota_limit": { "name": "Limite quota API" },

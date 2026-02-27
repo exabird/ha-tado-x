@@ -32,6 +32,7 @@ class TadoXDevice:
     temperature_offset: float = 0.0
     mounting_state: str | None = None
     child_lock_enabled: bool = False
+    control_mode: str | None = None
     room_id: int | None = None
     room_name: str | None = None
 
@@ -329,6 +330,7 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                         temperature_offset=device_data.get("temperatureOffset", 0.0),
                         mounting_state=device_data.get("mountingState"),
                         child_lock_enabled=device_data.get("childLockEnabled", False),
+                        control_mode=device_data.get("controlMode"),
                         room_id=room_id,
                         room_name=room.name,
                     )
@@ -374,6 +376,7 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     device_type=device_type,
                     firmware_version=device_data.get("firmwareVersion", ""),
                     connection_state=other_device_connection.get("state", "DISCONNECTED"),
+                    control_mode=device_data.get("controlMode"),
                     room_id=other_room_id,
                     room_name=other_room_name,
                 )

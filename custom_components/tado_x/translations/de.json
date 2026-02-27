@@ -155,6 +155,15 @@
       "temperature_offset": {
         "name": "Temperatur-Offset"
       },
+      "control_mode": {
+        "name": "Steuerungsmodus",
+        "state": {
+          "GAS_BOILER": "Standard (Gaskessel)",
+          "UNDERFLOOR_HEATING": "Fußbodenheizung",
+          "HEAT_PUMP": "Wärmepumpe",
+          "NO_TEMPERATURE_CONTROL": "Bei Heizbedarf, dauerhaft ein"
+        }
+      },
       "api_calls_today": {
         "name": "API-Aufrufe heute"
       },

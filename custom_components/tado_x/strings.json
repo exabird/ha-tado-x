@@ -175,6 +175,15 @@
       "temperature_offset": {
         "name": "Temperature Offset"
       },
+      "control_mode": {
+        "name": "Control Mode",
+        "state": {
+          "GAS_BOILER": "Default (Gas Boiler)",
+          "UNDERFLOOR_HEATING": "Underfloor Heating",
+          "HEAT_PUMP": "Heat Pump",
+          "NO_TEMPERATURE_CONTROL": "On heat request, continuously on"
+        }
+      },
       "api_calls_today": {
         "name": "API calls today"
       },
