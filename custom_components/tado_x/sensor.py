@@ -155,6 +155,12 @@ DEVICE_SENSORS: tuple[TadoXDeviceSensorEntityDescription, ...] = (
         icon="mdi:thermometer-plus",
         value_fn=lambda device: device.temperature_offset,
     ),
+    TadoXDeviceSensorEntityDescription(
+        key="control_mode",
+        translation_key="control_mode",
+        icon="mdi:tune-variant",
+        value_fn=lambda device: device.control_mode,
+    ),
 )
 
 def _get_api_usage_percentage(data: TadoXData) -> float:
@@ -351,6 +357,9 @@ async def async_setup_entry(
                     continue
                 # Skip temperature offset for devices that don't support it (Bridge)
                 if description.key == "temperature_offset" and device.temperature_offset is None:
+                    continue
+                # Skip control mode for devices that don't expose it
+                if description.key == "control_mode" and not device.control_mode:
                     continue
                 entities.append(TadoXDeviceSensor(coordinator, device.serial_number, description))
 
