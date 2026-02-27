@@ -28,6 +28,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_TOKEN_EXPIRY,
     DOMAIN,
+    FEATURE_ENTITY_MAP,
     SCAN_INTERVAL_AUTO_ASSIST,
     SCAN_INTERVAL_FREE_TIER,
 )
@@ -259,6 +260,37 @@ class TadoXConfigFlow(ConfigFlow, domain=DOMAIN):
 class TadoXOptionsFlow(OptionsFlow):
     """Handle Tado X options."""
 
+    async def _update_entity_states(
+        self, coordinator: Any
+    ) -> None:
+        """Update entity enabled/disabled states based on feature flags."""
+        from homeassistant.helpers import entity_registry as er
+        
+        entity_registry = er.async_get(self.hass)
+        
+        # Check each feature and its corresponding entities
+        for feature_flag, entity_keys in FEATURE_ENTITY_MAP.items():
+            feature_enabled = getattr(coordinator, feature_flag, False)
+            
+            # Find all entities matching this feature
+            # entity_registry.entities is a dict with entity_id as key
+            for entity_id, entity_entry in entity_registry.entities.items():
+                # Only process Tado X sensor or button entities
+                if entity_entry.platform != DOMAIN or entity_entry.domain not in ("sensor", "button"):
+                    continue
+                
+                # Check if this entity's unique_id ends with the feature key
+                if entity_entry.unique_id:
+                    # unique_id format is like: "123456_dhw_state" for sensors or "123456_boost_hot_water" for buttons
+                    for entity_key in entity_keys:
+                        if entity_entry.unique_id.endswith(f"_{entity_key}"):
+                            # Update the entity's disabled_by state
+                            entity_registry.async_update_entity(
+                                entity_id,
+                                disabled_by=None if feature_enabled else er.RegistryEntryDisabler.INTEGRATION,
+                            )
+                            break
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -313,6 +345,9 @@ class TadoXOptionsFlow(OptionsFlow):
                 coordinator.enable_running_times = enable_running_times
                 coordinator.enable_flow_temp = enable_flow_temp
                 coordinator.enable_hot_water = enable_hot_water
+
+                # Handle entity state changes when features are toggled
+                await self._update_entity_states(coordinator)
 
             return self.async_create_entry(title="", data={})
 
