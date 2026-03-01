@@ -83,7 +83,7 @@ PLATFORMS: Final = ["climate", "sensor", "binary_sensor", "switch", "button", "d
 # Feature to entity key mapping for sensor/button platforms
 # This maps feature flags to the corresponding entity keys that should be enabled/disabled based on the flag
 FEATURE_ENTITY_MAP: Final = {
-    "enable_hot_water": ["dhw_state", "boost_hot_water", "disable_hot_water", "resume_hot_water_schedule"],
+    "enable_hot_water": ["dhw_state", "dhw_mode", "boost_hot_water", "disable_hot_water", "resume_hot_water_schedule"],
     "enable_weather": ["outdoor_temperature", "solar_intensity", "weather_state"],
     "enable_running_times": ["heating_time_today"],
     "enable_air_comfort": ["air_freshness", "comfort_level"],

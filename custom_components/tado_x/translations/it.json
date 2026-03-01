@@ -162,13 +162,6 @@
           "AWAY": "Fuori casa"
         }
       },
-      "presence_mode": {
-        "name": "Modalità presenza",
-        "state": {
-          "MANUAL": "Manuale",
-          "AUTO": "Automatico (Geofencing)"
-        }
-      },
       "outdoor_temperature": { "name": "Temperatura esterna" },
       "solar_intensity": { "name": "Intensità solare" },
       "dhw_state": {
@@ -253,6 +246,24 @@
           "os_version": { "name": "Versione OS" },
           "model": { "name": "Modello" },
           "locale": { "name": "Lingua" }
+        }
+      }
+    },
+    "select": {
+      "presence_mode": {
+        "name": "Modalità presenza",
+        "state": {
+          "home": "Casa",
+          "away": "Fuori casa",
+          "auto": "Auto (Geofencing)"
+        }
+      },
+      "dhw_mode": {
+        "name": "Modalità acqua calda",
+        "state": {
+          "OFF": "Spento",
+          "SCHEDULE": "Programmazione",
+          "BOOST": "Boost"
         }
       }
     }

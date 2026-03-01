@@ -184,13 +184,6 @@
           "AWAY": "Unterwegs"
         }
       },
-      "presence_mode": {
-        "name": "Anwesenheitsmodus",
-        "state": {
-          "MANUAL": "Manuell",
-          "AUTO": "Auto (Geofencing)"
-        }
-      },
       "outdoor_temperature": {
         "name": "Außentemperatur"
       },
@@ -321,6 +314,24 @@
           "locale": {
             "name": "Locale"
           }
+        }
+      }
+    },
+    "select": {
+      "presence_mode": {
+        "name": "Anwesenheitsmodus",
+        "state": {
+          "home": "Zuhause",
+          "away": "Unterwegs",
+          "auto": "Auto (Geofencing)"
+        }
+      },
+      "dhw_mode": {
+        "name": "Warmwasser-Modus",
+        "state": {
+          "OFF": "Aus",
+          "SCHEDULE": "Zeitplan",
+          "BOOST": "Hochfahren"
         }
       }
     }
