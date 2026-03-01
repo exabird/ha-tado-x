@@ -12,7 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, FEATURE_ENTITY_MAP
 from .coordinator import TadoXDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +44,24 @@ BUTTON_DESCRIPTIONS: tuple[TadoXButtonEntityDescription, ...] = (
         icon="mdi:calendar-clock",
         press_fn=lambda coordinator: coordinator.api.resume_all_schedules(),
     ),
+    TadoXButtonEntityDescription(
+        key="boost_hot_water",
+        translation_key="boost_hot_water",
+        icon="mdi:fire",
+        press_fn=lambda coordinator: coordinator.api.boost_domestic_hot_water(),
+    ),
+    TadoXButtonEntityDescription(
+        key="disable_hot_water",
+        translation_key="disable_hot_water",
+        icon="mdi:power-off",
+        press_fn=lambda coordinator: coordinator.api.disable_domestic_hot_water(),
+    ),
+    TadoXButtonEntityDescription(
+        key="resume_hot_water_schedule",
+        translation_key="resume_hot_water_schedule",
+        icon="mdi:calendar-clock",
+        press_fn=lambda coordinator: coordinator.api.resume_domestic_hot_water_schedule(),
+    ),
 )
 
 
@@ -61,6 +79,48 @@ async def async_setup_entry(
     ]
 
     async_add_entities(entities)
+
+    # Set initial disabled_by state based on feature flags
+    from homeassistant.helpers import entity_registry as er
+    entity_registry = er.async_get(hass)
+    
+    # Disable entities based on feature flags
+    for entity_id, entity_entry in list(entity_registry.entities.items()):
+        # Only process Tado X button entities
+        if entity_entry.platform != DOMAIN or entity_entry.domain != "button":
+            continue
+        
+        if not entity_entry.unique_id:
+            continue
+        
+        # Check if this entity matches a disabled feature
+        should_be_disabled = False
+        for feature_flag, entity_keys in FEATURE_ENTITY_MAP.items():
+            feature_enabled = getattr(coordinator, feature_flag, False)
+            
+            # Check if entity_key matches any of the disabled feature's keys
+            for entity_key in entity_keys:
+                if entity_entry.unique_id.endswith(f"_{entity_key}"):
+                    if not feature_enabled:
+                        should_be_disabled = True
+                    break
+            
+            if should_be_disabled:
+                break
+        
+        # Update disabled state
+        if should_be_disabled:
+            entity_registry.async_update_entity(
+                entity_id,
+                disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+            )
+        else:
+            # Make sure it's enabled if the feature is on
+            if entity_entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+                entity_registry.async_update_entity(
+                    entity_id,
+                    disabled_by=None,
+                )
 
 
 class TadoXButton(CoordinatorEntity[TadoXDataUpdateCoordinator], ButtonEntity):

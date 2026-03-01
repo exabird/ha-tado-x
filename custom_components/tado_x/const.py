@@ -44,6 +44,7 @@ CONF_ENABLE_MOBILE_DEVICES: Final = "enable_mobile_devices"
 CONF_ENABLE_AIR_COMFORT: Final = "enable_air_comfort"
 CONF_ENABLE_RUNNING_TIMES: Final = "enable_running_times"
 CONF_ENABLE_FLOW_TEMP: Final = "enable_flow_temp"
+CONF_ENABLE_HOT_WATER: Final = "enable_hot_water"
 
 # Base API calls (required): get_rooms, get_rooms_and_devices, get_home_state
 API_CALLS_BASE: Final = 3
@@ -78,3 +79,12 @@ CONNECTION_STATE_DISCONNECTED: Final = "DISCONNECTED"
 
 # Platforms
 PLATFORMS: Final = ["climate", "sensor", "binary_sensor", "switch", "button", "device_tracker", "select", "number"]
+
+# Feature to entity key mapping for sensor/button platforms
+# This maps feature flags to the corresponding entity keys that should be enabled/disabled based on the flag
+FEATURE_ENTITY_MAP: Final = {
+    "enable_hot_water": ["dhw_state", "dhw_mode", "boost_hot_water", "disable_hot_water", "resume_hot_water_schedule"],
+    "enable_weather": ["outdoor_temperature", "solar_intensity", "weather_state"],
+    "enable_running_times": ["heating_time_today"],
+    "enable_air_comfort": ["air_freshness", "comfort_level"],
+}

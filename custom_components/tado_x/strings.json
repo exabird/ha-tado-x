@@ -50,7 +50,8 @@
           "enable_mobile_devices": "Enable mobile device tracking",
           "enable_air_comfort": "Enable air comfort sensors",
           "enable_running_times": "Enable heating time sensors",
-          "enable_flow_temp": "Enable flow temperature control"
+          "enable_flow_temp": "Enable flow temperature control",
+          "enable_hot_water": "Enable hot water sensor"
         },
         "data_description": {
           "has_auto_assist": "Enable this if you have an Auto-Assist subscription. This will automatically adjust the update interval.",
@@ -59,7 +60,8 @@
           "enable_mobile_devices": "Enables device trackers for mobile phones with geofencing. Uses 1 API call per update.",
           "enable_air_comfort": "Enables air freshness and comfort level sensors per room. Uses 1 API call per update.",
           "enable_running_times": "Enables heating time today sensors per room. Uses 1 API call per update.",
-          "enable_flow_temp": "Enables max flow temperature slider and auto-adaptation switch (requires OpenTherm boiler). Uses 1 API call per update."
+          "enable_flow_temp": "Enables max flow temperature slider and auto-adaptation switch (requires OpenTherm boiler). Uses 1 API call per update.",
+          "enable_hot_water": "Enables domestic hot water state sensor. Uses 1 API call per update."
         }
       }
     }
@@ -293,6 +295,15 @@
       },
       "resume_schedules": {
         "name": "Resume Schedules"
+      },
+      "boost_hot_water": {
+        "name": "Boost Hot Water"
+      },
+      "disable_hot_water": {
+        "name": "Turn Off Hot Water"
+      },
+      "resume_hot_water_schedule": {
+        "name": "Resume Hot Water Schedule"
       }
     },
     "select": {
@@ -302,6 +313,14 @@
           "home": "Home",
           "away": "Away",
           "auto": "Auto (Geofencing)"
+        }
+      },
+      "dhw_mode": {
+        "name": "Hot Water Mode",
+        "state": {
+          "OFF": "Off",
+          "SCHEDULE": "Schedule",
+          "BOOST": "Boost"
         }
       }
     },
