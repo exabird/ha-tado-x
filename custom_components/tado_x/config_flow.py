@@ -17,6 +17,7 @@ from .const import (
     CONF_ACCESS_TOKEN,
     CONF_ENABLE_AIR_COMFORT,
     CONF_ENABLE_FLOW_TEMP,
+    CONF_ENABLE_DHW,
     CONF_ENABLE_MOBILE_DEVICES,
     CONF_ENABLE_RUNNING_TIMES,
     CONF_ENABLE_WEATHER,
@@ -272,6 +273,7 @@ class TadoXOptionsFlow(OptionsFlow):
             enable_air_comfort = user_input.get(CONF_ENABLE_AIR_COMFORT, has_auto_assist)
             enable_running_times = user_input.get(CONF_ENABLE_RUNNING_TIMES, has_auto_assist)
             enable_flow_temp = user_input.get(CONF_ENABLE_FLOW_TEMP, has_auto_assist)
+            enable_dhw = user_input.get(CONF_ENABLE_DHW, has_auto_assist)
 
             # Determine scan interval: custom if set, otherwise based on tier
             if custom_interval and custom_interval > 0:
@@ -292,6 +294,7 @@ class TadoXOptionsFlow(OptionsFlow):
                 CONF_ENABLE_AIR_COMFORT: enable_air_comfort,
                 CONF_ENABLE_RUNNING_TIMES: enable_running_times,
                 CONF_ENABLE_FLOW_TEMP: enable_flow_temp,
+                CONF_ENABLE_DHW: enable_dhw,
             }
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
@@ -309,6 +312,7 @@ class TadoXOptionsFlow(OptionsFlow):
                 coordinator.enable_air_comfort = enable_air_comfort
                 coordinator.enable_running_times = enable_running_times
                 coordinator.enable_flow_temp = enable_flow_temp
+                coordinator.enable_dhw = enable_dhw
 
             return self.async_create_entry(title="", data={})
 
@@ -323,6 +327,7 @@ class TadoXOptionsFlow(OptionsFlow):
         current_enable_air_comfort = self.config_entry.data.get(CONF_ENABLE_AIR_COMFORT, default_features)
         current_enable_running_times = self.config_entry.data.get(CONF_ENABLE_RUNNING_TIMES, default_features)
         current_enable_flow_temp = self.config_entry.data.get(CONF_ENABLE_FLOW_TEMP, default_features)
+        current_enable_dhw = self.config_entry.data.get(CONF_ENABLE_DHW, default_features)
 
         # Suggested intervals based on tier
         default_interval = (
@@ -361,6 +366,10 @@ class TadoXOptionsFlow(OptionsFlow):
                     vol.Required(
                         CONF_ENABLE_FLOW_TEMP,
                         default=current_enable_flow_temp,
+                    ): bool,
+                    vol.Required(
+                        CONF_ENABLE_DHW,
+                        default=current_enable_dhw,
                     ): bool,
                 }
             ),

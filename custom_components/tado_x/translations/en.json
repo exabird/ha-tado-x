@@ -49,7 +49,9 @@
           "enable_weather": "Enable weather sensors",
           "enable_mobile_devices": "Enable mobile device tracking",
           "enable_air_comfort": "Enable air comfort sensors",
-          "enable_running_times": "Enable heating time sensors"
+          "enable_running_times": "Enable heating time sensors",
+          "enable_flow_temp": "Enable flow temperature control",
+          "enable_dhw": "Enable domestic hot water control"
         },
         "data_description": {
           "has_auto_assist": "Enable this if you have an Auto-Assist subscription. This will automatically adjust the update interval.",
@@ -57,7 +59,9 @@
           "enable_weather": "Enables outdoor temperature, solar intensity, and weather state sensors. Uses 1 API call per update.",
           "enable_mobile_devices": "Enables device trackers for mobile phones with geofencing. Uses 1 API call per update.",
           "enable_air_comfort": "Enables air freshness and comfort level sensors per room. Uses 1 API call per update.",
-          "enable_running_times": "Enables heating time today sensors per room. Uses 1 API call per update."
+          "enable_running_times": "Enables heating time today sensors per room. Uses 1 API call per update.",
+          "enable_flow_temp": "Enables max flow temperature slider and auto-adaptation switch (requires OpenTherm boiler). Uses 1 API call per update.",
+          "enable_dhw": "Enables domestic hot water temperature control. Uses 1 API call per update."
         }
       }
     }
@@ -273,6 +277,9 @@
     "number": {
       "max_flow_temperature": {
         "name": "Max Flow Temperature"
+      },
+      "domestic_hot_water_setpoint": {
+        "name": "Domestic Hot Water Temperature"
       }
     },
     "device_tracker": {

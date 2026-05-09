@@ -855,3 +855,44 @@ class TadoXApi:
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/flowTemperatureOptimization",
             json_data={"autoAdaptation": {"enabled": enabled}},
         )
+
+    async def get_domestic_hot_water_state(self) -> dict[str, Any]:
+        """Get the status of domestic hot water.
+
+        Returns:
+            Status information including:
+            {
+                {
+                    "state": "MANUAL_ON",
+                    "nextStateChange": null,
+                    "setpoint": 48,
+                    "setpointConstraints": {
+                        "min": 30,
+                        "max": 60
+                    }
+                }
+            }
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/programmer/domesticHotWater/state",
+        )
+        return result if isinstance(result, dict) else {}
+
+    async def set_domestic_hot_water_setpoint(self, temperature: int) -> None:
+        """Set the target temerature for the boiler.
+
+        Args:
+            temperature: Temperature in °C (typically 30-60, depends on constraints)
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/programmer/domesticHotWater/manualControl",
+            json_data={"setpoint": temperature},
+        )

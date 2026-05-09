@@ -125,6 +125,12 @@ class TadoXData:
     flow_temp_auto_adaptation: bool = False
     flow_temp_auto_value: int | None = None
     has_flow_temp_control: bool = False
+    # Domestic hot water
+    dhw_setpoint: int | None = None
+    dhw_min: int | None = None
+    dhw_max: int | None = None
+    dhw_state: str | None = None
+    has_dhw: bool = False
 
 
 class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
@@ -143,6 +149,7 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         enable_air_comfort: bool = True,
         enable_running_times: bool = True,
         enable_flow_temp: bool = True,
+        enable_dhw: bool = True,
     ) -> None:
         """Initialize the coordinator."""
         # Determine scan interval based on subscription tier if not explicitly set
@@ -171,6 +178,7 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         self.enable_air_comfort = enable_air_comfort
         self.enable_running_times = enable_running_times
         self.enable_flow_temp = enable_flow_temp
+        self.enable_dhw = enable_dhw
 
         _LOGGER.info(
             "Tado X coordinator initialized with %d second update interval (%s tier)",
@@ -178,8 +186,8 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             "Auto-Assist" if api.has_auto_assist else "Free"
         )
         _LOGGER.info(
-            "Optional features - Weather: %s, Mobile devices: %s, Air comfort: %s, Running times: %s, Flow temp: %s",
-            enable_weather, enable_mobile_devices, enable_air_comfort, enable_running_times, enable_flow_temp
+            "Optional features - Weather: %s, Mobile devices: %s, Air comfort: %s, Running times: %s, Flow temp: %s, DHW: %s",
+            enable_weather, enable_mobile_devices, enable_air_comfort, enable_running_times, enable_flow_temp, enable_dhw
         )
 
     def update_scan_interval(self, new_interval: int) -> None:
@@ -199,6 +207,8 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         if self.enable_air_comfort:
             calls += 1
         if self.enable_running_times:
+            calls += 1
+        if self.enable_dhw:
             calls += 1
         return calls
 
@@ -488,6 +498,28 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     # (requires OpenTherm-compatible boiler control device)
                     _LOGGER.debug("Flow temperature optimization not available: %s", err)
                     data.has_flow_temp_control = False
+
+            # Fetch domestic hot water state (if enabled)
+            if self.enable_dhw:
+                try:
+                    dhw_data = await self.api.get_domestic_hot_water_state()
+                    if dhw_data:
+                        data.has_dhw = True
+                        data.dhw_state = dhw_data.get("state")
+                        data.dhw_setpoint = dhw_data.get("setpoint")
+                        constraints = dhw_data.get("setpointConstraints") or {}
+                        data.dhw_min = constraints.get("min")
+                        data.dhw_max = constraints.get("max")
+                        _LOGGER.debug(
+                            "DHW state: %s, setpoint: %s°C (range %s-%s)",
+                            data.dhw_state,
+                            data.dhw_setpoint,
+                            data.dhw_min,
+                            data.dhw_max,
+                        )
+                except Exception as err:
+                    _LOGGER.debug("Domestic hot water state not available: %s", err)
+                    data.has_dhw = False
 
             # Populate API stats (prefer real values from headers when available)
             data.api_calls_today = self.api.api_calls_today

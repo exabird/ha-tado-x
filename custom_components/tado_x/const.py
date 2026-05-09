@@ -44,6 +44,7 @@ CONF_ENABLE_MOBILE_DEVICES: Final = "enable_mobile_devices"
 CONF_ENABLE_AIR_COMFORT: Final = "enable_air_comfort"
 CONF_ENABLE_RUNNING_TIMES: Final = "enable_running_times"
 CONF_ENABLE_FLOW_TEMP: Final = "enable_flow_temp"
+CONF_ENABLE_DHW: Final = "enable_dhw"
 
 # Base API calls (required): get_rooms, get_rooms_and_devices, get_home_state
 API_CALLS_BASE: Final = 3
