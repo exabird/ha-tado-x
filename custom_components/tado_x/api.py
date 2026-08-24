@@ -310,7 +310,17 @@ class TadoXApi:
                 return True
 
         except aiohttp.ClientError as err:
-            raise TadoXAuthError(f"Network error during token refresh: {err}") from err
+            # A network-level failure (DNS resolution, connection reset, TLS
+            # handshake, etc.) here means Tado was never actually reached, so
+            # nothing about the refresh token's validity is known. Raising
+            # TadoXAuthError previously caused the coordinator to treat this
+            # as a rejected credential and force Home Assistant into a
+            # persistent reauthentication flow, even though the token itself
+            # was fine and the problem cleared up once connectivity returned.
+            # Use TadoXApiError instead so the coordinator surfaces this as a
+            # transient UpdateFailed and retries on the next update, exactly
+            # like errors from _request() already do for the same reason.
+            raise TadoXApiError(f"Network error during token refresh: {err}") from err
 
     async def _ensure_valid_token(self) -> None:
         """Ensure we have a valid access token."""
