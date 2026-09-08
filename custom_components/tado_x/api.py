@@ -61,6 +61,10 @@ class TadoXApi:
         self._home_id: int | None = None
         self._has_auto_assist = has_auto_assist
         self._on_token_refresh = on_token_refresh
+        # Serialises token refreshes. Tado rotates the refresh token on every
+        # use, so two concurrent refreshes make the second one fail with
+        # invalid_grant / refresh_token_not_found.
+        self._token_lock = asyncio.Lock()
 
         # Initialize API call tracking with persistence support
         # Tado resets quotas at 12:00 UTC (noon), not midnight
@@ -312,14 +316,32 @@ class TadoXApi:
         except aiohttp.ClientError as err:
             raise TadoXAuthError(f"Network error during token refresh: {err}") from err
 
+    def _token_is_stale(self) -> bool:
+        """Return whether the access token is gone or about to expire."""
+        return bool(
+            self._token_expiry
+            and datetime.now() >= self._token_expiry - timedelta(seconds=60)
+        )
+
     async def _ensure_valid_token(self) -> None:
-        """Ensure we have a valid access token."""
+        """Ensure we have a valid access token.
+
+        Every request passes through here, so a scheduled poll and a command
+        from an automation can arrive together. Refreshing twice with the same
+        refresh token loses that race: Tado rotates the token on first use and
+        answers the second call with refresh_token_not_found. The lock lets one
+        caller through, and the second check inside it means whoever waited
+        finds the fresh token and leaves it alone.
+        """
         if not self._access_token:
             raise TadoXAuthError("Not authenticated")
 
-        # Refresh if token expires in less than 60 seconds
-        if self._token_expiry and datetime.now() >= self._token_expiry - timedelta(seconds=60):
-            await self.refresh_access_token()
+        if not self._token_is_stale():
+            return
+
+        async with self._token_lock:
+            if self._token_is_stale():
+                await self.refresh_access_token()
 
     async def _request(
         self,
