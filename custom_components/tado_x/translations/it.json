@@ -138,7 +138,8 @@
         "name": "Batteria",
         "state": {
           "normal": "Normale",
-          "low": "Bassa"
+          "low": "Bassa",
+          "depleted": "Esaurita"
         }
       },
       "device_temperature": { "name": "Temperatura dispositivo" },

@@ -134,7 +134,7 @@ DEVICE_SENSORS: tuple[TadoXDeviceSensorEntityDescription, ...] = (
         key="battery",
         translation_key="battery",
         device_class=SensorDeviceClass.ENUM,
-        options=["normal", "low"],
+        options=["normal", "low", "depleted"],
         icon="mdi:battery",
         value_fn=lambda device: device.battery_state.lower() if device.battery_state else None,
     ),
