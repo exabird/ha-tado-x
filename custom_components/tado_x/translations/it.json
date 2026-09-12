@@ -129,6 +129,12 @@
         }
       }
     },
+    "select": {
+      "presence_mode": {
+        "name": "Modalità presenza",
+        "state": { "home": "Casa", "away": "Fuori", "auto": "Auto (Geofencing)" }
+      }
+    },
     "sensor": {
       "temperature": { "name": "Temperatura" },
       "humidity": { "name": "Umidità" },
