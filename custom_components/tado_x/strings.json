@@ -166,7 +166,8 @@
         "name": "Battery",
         "state": {
           "normal": "Normal",
-          "low": "Low"
+          "low": "Low",
+          "depleted": "Depleted"
         }
       },
       "device_temperature": {
