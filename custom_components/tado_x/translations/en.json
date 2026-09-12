@@ -305,6 +305,16 @@
           }
         }
       }
+    },
+    "select": {
+      "presence_mode": {
+        "name": "Presence Mode",
+        "state": {
+          "home": "Home",
+          "away": "Away",
+          "auto": "Auto (Geofencing)"
+        }
+      }
     }
   }
 }
