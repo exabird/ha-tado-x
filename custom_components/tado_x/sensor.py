@@ -572,6 +572,7 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
             name=device_name,
             manufacturer="Tado",
             model=device_type_models.get(device.device_type, device.device_type),
+            serial_number=device.serial_number,
             sw_version=device.firmware_version,
             via_device=via_device_id,
         )

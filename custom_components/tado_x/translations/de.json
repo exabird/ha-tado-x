@@ -262,6 +262,27 @@
     "number": {
       "max_flow_temperature": {
         "name": "Max. Vorlauftemperatur"
+      },
+      "timer_duration": {
+        "name": "Timerdauer"
+      }
+    },
+    "select": {
+      "presence_mode": {
+        "name": "Anwesenheitsmodus",
+        "state": {
+          "home": "Zuhause",
+          "away": "Unterwegs",
+          "auto": "Auto (Geofencing)"
+        }
+      },
+      "termination_type": {
+        "name": "Abschaltart",
+        "state": {
+          "TIMER": "Timer",
+          "MANUAL": "Manuell",
+          "NEXT_TIME_BLOCK": "Nächster Zeitblock"
+        }
       }
     },
     "button": {

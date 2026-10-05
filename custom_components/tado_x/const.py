@@ -61,7 +61,7 @@ TERMINATION_TIMER: Final = "TIMER"
 TERMINATION_NEXT_TIME_BLOCK: Final = "NEXT_TIME_BLOCK"
 
 # Default timer duration (30 minutes)
-DEFAULT_TIMER_DURATION: Final = 1800
+DEFAULT_TIMER_DURATION_MINUTES: Final = 30
 
 # Temperature limits
 MIN_TEMP: Final = 5.0

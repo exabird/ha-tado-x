@@ -32,6 +32,9 @@ from .const import (
     CONF_TOKEN_EXPIRY,
     DOMAIN,
     PLATFORMS,
+    TERMINATION_MANUAL,
+    TERMINATION_NEXT_TIME_BLOCK,
+    TERMINATION_TIMER,
 )
 from .coordinator import TadoXDataUpdateCoordinator
 
@@ -42,6 +45,7 @@ SERVICE_SET_TEMPERATURE_OFFSET: Final = "set_temperature_offset"
 ATTR_OFFSET: Final = "offset"
 
 SERVICE_ADD_METER_READING: Final = "add_meter_reading"
+ATTR_HOME_ID: Final = "home_id"
 ATTR_READING: Final = "reading"
 ATTR_DATE: Final = "date"
 
@@ -55,6 +59,7 @@ SERVICE_SET_CLIMATE_TIMER: Final = "set_climate_timer"
 ATTR_ENTITY_ID: Final = "entity_id"
 ATTR_TEMPERATURE: Final = "temperature"
 ATTR_DURATION: Final = "duration"
+ATTR_TERMINATION_TYPE: Final = "termination_type"
 
 # Service schemas
 SERVICE_SET_TEMPERATURE_OFFSET_SCHEMA = vol.Schema(
@@ -71,6 +76,7 @@ SERVICE_ADD_METER_READING_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_READING): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional(ATTR_DATE): cv.string,
+        vol.Optional(ATTR_HOME_ID): cv.string,
     }
 )
 
@@ -80,6 +86,7 @@ SERVICE_SET_EIQ_TARIFF_SCHEMA = vol.Schema(
         vol.Required(ATTR_UNIT): vol.In(["m3", "kWh"]),
         vol.Optional(ATTR_START_DATE): cv.string,
         vol.Optional(ATTR_END_DATE): cv.string,
+        vol.Optional(ATTR_HOME_ID): cv.string,
     }
 )
 
@@ -88,11 +95,14 @@ SERVICE_SET_CLIMATE_TIMER_SCHEMA = vol.Schema(
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
         vol.Required(ATTR_TEMPERATURE): vol.All(
             vol.Coerce(float),
-            vol.Range(min=5.0, max=25.0),
+            vol.Range(min=5.0, max=30.0),
         ),
         vol.Required(ATTR_DURATION): vol.All(
             vol.Coerce(int),
             vol.Range(min=1, max=1440),  # 1 minute to 24 hours
+        ),
+        vol.Optional(ATTR_TERMINATION_TYPE, default=TERMINATION_TIMER): vol.In(
+            [TERMINATION_TIMER, TERMINATION_MANUAL, TERMINATION_NEXT_TIME_BLOCK]
         ),
     }
 )
@@ -223,56 +233,108 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     # Register services
+    #
+    # Services are global to the integration domain, while coordinators are
+    # specific to config entries. Service handlers must therefore resolve the
+    # correct coordinator at call time rather than using the coordinator from
+    # whichever config entry happened to register the service first.
+
+    def get_coordinator_for_config_entry(
+        config_entry_id: str,
+    ) -> TadoXDataUpdateCoordinator:
+        """Return the coordinator belonging to a config entry."""
+        service_coordinator = hass.data.get(DOMAIN, {}).get(config_entry_id)
+        if service_coordinator is None:
+            raise HomeAssistantError(
+                f"No Tado X coordinator found for config entry {config_entry_id}"
+            )
+        return service_coordinator
+
+    def get_coordinator_for_home(home_id: str) -> TadoXDataUpdateCoordinator:
+        """Return the coordinator belonging to a Tado home."""
+        for service_coordinator in hass.data.get(DOMAIN, {}).values():
+            if str(service_coordinator.home_id) == str(home_id):
+                return service_coordinator
+        raise HomeAssistantError(f"No Tado X coordinator found for home {home_id}")
+
+    def get_default_coordinator() -> TadoXDataUpdateCoordinator:
+        """Return the coordinator when exactly one Tado home is configured."""
+        coordinators = hass.data.get(DOMAIN, {})
+        if not coordinators:
+            raise HomeAssistantError("No Tado X homes are configured")
+        if len(coordinators) > 1:
+            raise HomeAssistantError(
+                "Multiple Tado X homes are configured. A home_id must be specified."
+            )
+        return next(iter(coordinators.values()))
+
+    def get_home_coordinator(call: ServiceCall) -> TadoXDataUpdateCoordinator:
+        """Resolve coordinator for a home-level service."""
+        requested_home_id = call.data.get(ATTR_HOME_ID)
+        if requested_home_id is not None:
+            return get_coordinator_for_home(requested_home_id)
+        return get_default_coordinator()
+
     async def async_set_temperature_offset(call: ServiceCall) -> None:
         """Handle set_temperature_offset service call."""
         device_id = call.data[ATTR_DEVICE_ID]
         offset = call.data[ATTR_OFFSET]
 
-        # Get device registry
         device_registry_instance = dr.async_get(hass)
         device = device_registry_instance.async_get(device_id)
-
         if not device:
-            _LOGGER.error("Device %s not found", device_id)
-            return
+            raise HomeAssistantError(f"Device {device_id} not found")
 
-        # Find the device serial number from identifiers
+        config_entry_id = next(
+            (
+                entry_id
+                for entry_id in device.config_entries
+                if entry_id in hass.data.get(DOMAIN, {})
+            ),
+            None,
+        )
+        if config_entry_id is None:
+            raise HomeAssistantError(
+                f"Could not determine Tado X config entry for device {device_id}"
+            )
+
+        service_coordinator = get_coordinator_for_config_entry(config_entry_id)
+
         device_serial = None
         for identifier in device.identifiers:
             if identifier[0] == DOMAIN:
-                # Identifier format is (DOMAIN, serial_number) or (DOMAIN, home_id_room_id)
                 device_serial = identifier[1]
                 break
 
         if not device_serial:
-            _LOGGER.error("Could not find serial number for device %s", device_id)
-            return
-
-        # Check if this is a room device (format: home_id_room_id) or a real device
-        if "_" in device_serial:
-            _LOGGER.error(
-                "Cannot set temperature offset for room device %s. "
-                "Please select a specific valve or sensor device.",
-                device_id,
+            raise HomeAssistantError(
+                f"Could not find serial number for device {device_id}"
             )
-            return
+
+        if "_" in device_serial:
+            raise HomeAssistantError(
+                f"Cannot set temperature offset for room device {device_id}. "
+                "Please select a specific valve or sensor device."
+            )
 
         try:
-            await coordinator.api.set_temperature_offset(device_serial, offset)
-            await coordinator.async_request_refresh()
+            await service_coordinator.api.set_temperature_offset(device_serial, offset)
+            await service_coordinator.async_request_refresh()
             _LOGGER.info(
                 "Set temperature offset for device %s to %.1f°C",
                 device_serial,
                 offset,
             )
-        except Exception as err:
+        except TadoXApiError as err:
             _LOGGER.error(
                 "Failed to set temperature offset for device %s: %s",
                 device_serial,
                 err,
             )
+            raise HomeAssistantError(
+                f"Failed to set temperature offset: {err}"
+            ) from err
 
-    # Register temperature offset service (only once per integration)
     if not hass.services.has_service(DOMAIN, SERVICE_SET_TEMPERATURE_OFFSET):
         hass.services.async_register(
             DOMAIN,
@@ -285,15 +347,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Handle add_meter_reading service call."""
         reading = call.data[ATTR_READING]
         date = call.data.get(ATTR_DATE)
+        service_coordinator = get_home_coordinator(call)
 
         try:
-            await coordinator.api.add_meter_reading(reading, date)
-            _LOGGER.info("Meter reading %s added successfully", reading)
+            await service_coordinator.api.add_meter_reading(reading, date)
+            _LOGGER.info(
+                "Meter reading %s added successfully for home %s",
+                reading,
+                service_coordinator.home_id,
+            )
         except TadoXApiError as err:
             _LOGGER.error("Failed to add meter reading: %s", err)
             raise HomeAssistantError(f"Failed to add meter reading: {err}") from err
 
-    # Register meter reading service (only once per integration)
     if not hass.services.has_service(DOMAIN, SERVICE_ADD_METER_READING):
         hass.services.async_register(
             DOMAIN,
@@ -308,15 +374,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         unit = call.data[ATTR_UNIT]
         start_date = call.data.get(ATTR_START_DATE)
         end_date = call.data.get(ATTR_END_DATE)
+        service_coordinator = get_home_coordinator(call)
 
         try:
-            await coordinator.api.set_eiq_tariff(tariff, unit, start_date, end_date)
-            _LOGGER.info("EIQ tariff %.2f %s set successfully", tariff, unit)
+            await service_coordinator.api.set_eiq_tariff(
+                tariff, unit, start_date, end_date
+            )
+            _LOGGER.info(
+                "EIQ tariff %.2f %s set successfully for home %s",
+                tariff,
+                unit,
+                service_coordinator.home_id,
+            )
         except TadoXApiError as err:
             _LOGGER.error("Failed to set EIQ tariff: %s", err)
             raise HomeAssistantError(f"Failed to set EIQ tariff: {err}") from err
 
-    # Register EIQ tariff service (only once per integration)
     if not hass.services.has_service(DOMAIN, SERVICE_SET_EIQ_TARIFF):
         hass.services.async_register(
             DOMAIN,
@@ -327,68 +400,81 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def async_set_climate_timer(call: ServiceCall) -> None:
         """Handle set_climate_timer service call."""
+        from homeassistant.helpers import entity_registry as er
+
         entity_id = call.data[ATTR_ENTITY_ID]
         temperature = call.data[ATTR_TEMPERATURE]
         duration_minutes = call.data[ATTR_DURATION]
+        termination_type = call.data.get(ATTR_TERMINATION_TYPE, TERMINATION_TIMER)
 
-        # Get the entity from registry
-        from homeassistant.helpers import entity_registry as er
         entity_registry = er.async_get(hass)
         entity_entry = entity_registry.async_get(entity_id)
-
         if not entity_entry:
             raise HomeAssistantError(f"Entity {entity_id} not found in registry")
 
-        # Verify this is a Tado X entity
         if entity_entry.platform != DOMAIN:
             raise HomeAssistantError(
-                f"Entity {entity_id} is not a Tado X entity (platform: {entity_entry.platform}). "
-                f"The set_climate_timer service only works with native Tado X climate entities."
+                f"Entity {entity_id} is not a Tado X entity "
+                f"(platform: {entity_entry.platform}). "
+                "The set_climate_timer service only works with native "
+                "Tado X climate entities."
             )
 
+        if not entity_entry.config_entry_id:
+            raise HomeAssistantError(f"Entity {entity_id} has no config entry")
         if not entity_entry.unique_id:
             raise HomeAssistantError(f"Entity {entity_id} has no unique_id")
 
-        # Extract room_id from unique_id
-        # The unique_id for Tado X climate entities is "{home_id}_{room_id}_climate"
+        service_coordinator = get_coordinator_for_config_entry(
+            entity_entry.config_entry_id
+        )
+
         try:
             parts = entity_entry.unique_id.split("_")
             if len(parts) == 3 and parts[2] == "climate":
-                # Format: "12345_67_climate" where 12345 is home_id and 67 is room_id
+                entity_home_id = parts[0]
                 room_id = int(parts[1])
             elif len(parts) == 2:
-                # Legacy format: "12345_67" (backward compatibility)
+                entity_home_id = parts[0]
                 room_id = int(parts[1])
             else:
-                raise ValueError(f"Unexpected unique_id format: {entity_entry.unique_id}")
+                raise ValueError(
+                    f"Unexpected unique_id format: {entity_entry.unique_id}"
+                )
         except (ValueError, IndexError) as err:
             raise HomeAssistantError(
                 f"Could not extract room_id from entity {entity_id}: {err}"
             ) from err
 
-        # Convert minutes to seconds
+        if str(service_coordinator.home_id) != str(entity_home_id):
+            raise HomeAssistantError(
+                f"Entity {entity_id} belongs to Tado home {entity_home_id}, "
+                f"but its config entry belongs to home {service_coordinator.home_id}"
+            )
+
         duration_seconds = duration_minutes * 60
 
         try:
-            await coordinator.api.set_room_temperature(
+            await service_coordinator.api.set_room_temperature(
                 room_id=room_id,
                 temperature=temperature,
                 power="ON",
-                termination_type="TIMER",
+                termination_type=termination_type,
                 duration_seconds=duration_seconds,
             )
-            await coordinator.async_request_refresh()
+            await service_coordinator.async_request_refresh()
             _LOGGER.info(
-                "Set %s to %.1f°C for %d minutes",
+                "Set %s to %.1f°C for %d minutes (home %s, room %s)",
                 entity_id,
                 temperature,
                 duration_minutes,
+                service_coordinator.home_id,
+                room_id,
             )
         except TadoXApiError as err:
-            _LOGGER.error("Failed to set climate timer: %s", err)
+            _LOGGER.error("Failed to set climate timer for %s: %s", entity_id, err)
             raise HomeAssistantError(f"Failed to set climate timer: {err}") from err
 
-    # Register climate timer service (only once per integration)
     if not hass.services.has_service(DOMAIN, SERVICE_SET_CLIMATE_TIMER):
         hass.services.async_register(
             DOMAIN,

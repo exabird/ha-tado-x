@@ -273,6 +273,27 @@
     "number": {
       "max_flow_temperature": {
         "name": "Max Flow Temperature"
+      },
+      "timer_duration": {
+        "name": "Timer Duration"
+      }
+    },
+    "select": {
+      "presence_mode": {
+        "name": "Presence Mode",
+        "state": {
+          "home": "Home",
+          "away": "Away",
+          "auto": "Auto (Geofencing)"
+        }
+      },
+      "termination_type": {
+        "name": "Termination Type",
+        "state": {
+          "TIMER": "Timer",
+          "MANUAL": "Manual",
+          "NEXT_TIME_BLOCK": "Next Time Block"
+        }
       }
     },
     "device_tracker": {

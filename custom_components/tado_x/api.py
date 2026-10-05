@@ -20,7 +20,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
+_USE_ROOM_DEFAULT = object()
 
 class TadoXAuthError(Exception):
     """Exception for authentication errors."""
@@ -61,6 +61,7 @@ class TadoXApi:
         self._home_id: int | None = None
         self._has_auto_assist = has_auto_assist
         self._on_token_refresh = on_token_refresh
+        self._get_room_control_defaults = None
 
         # Initialize API call tracking with persistence support
         # Tado resets quotas at 12:00 UTC (noon), not midnight
@@ -425,12 +426,33 @@ class TadoXApi:
         room_id: int,
         temperature: float,
         power: str = "ON",
-        termination_type: str = "TIMER",
-        duration_seconds: int = 1800,
+        termination_type: str | None | object = _USE_ROOM_DEFAULT,
+        duration_seconds: int | None | object = _USE_ROOM_DEFAULT,
     ) -> None:
         """Set the temperature for a room."""
         if not self._home_id:
             raise TadoXApiError("Home ID not set")
+
+        # Obtain the configured defaults for this room.
+        defaults = None
+        if self._get_room_control_defaults is not None:
+            defaults = self._get_room_control_defaults(room_id)
+
+        # If the caller omitted termination_type, use the room default.
+        if termination_type is _USE_ROOM_DEFAULT:
+            termination_type = (
+                defaults.termination_type
+                if defaults is not None
+                else "TIMER"
+            )
+
+        # If the caller omitted duration, use the room default.
+        if duration_seconds is _USE_ROOM_DEFAULT:
+            duration_seconds = (
+                defaults.duration_minutes * 60
+                if defaults is not None
+                else 1800
+            )
 
         data: dict[str, Any] = {
             "setting": {
@@ -621,6 +643,53 @@ class TadoXApi:
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/roomsAndDevices/devices/{device_serial}",
             json_data={"childLockEnabled": enabled},
         )
+
+    async def set_room_manual_control_termination(
+        self,
+        room_id: int,
+        termination_type: str,
+        duration_seconds: int | None = None,
+    ) -> None:
+        """Set the Tado master manual-control termination setting for a room."""
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        valid_types = {"NEXT_TIME_BLOCK", "TIMER", "MANUAL"}
+
+        if termination_type not in valid_types:
+            raise ValueError(
+                f"Invalid termination type: {termination_type}. "
+                f"Expected one of {sorted(valid_types)}"
+            )
+
+        termination: dict[str, Any] = {
+            "type": termination_type,
+        }
+
+        if termination_type == "TIMER":
+            if duration_seconds is None:
+                raise ValueError(
+                    "duration_seconds is required when termination_type is TIMER"
+                )
+            termination["durationInSeconds"] = duration_seconds
+
+        data = {
+            "deviceManualControlTermination": termination,
+        }
+
+        _LOGGER.debug(
+            "Setting room %s manual control termination: %s",
+            room_id,
+            data,
+        )
+
+        await self._request(
+            "PATCH",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}"
+            f"/roomsAndDevices/rooms/{room_id}",
+            json_data=data,
+        )
+
 
     # Quick Actions
     async def boost_all_heating(self) -> None:

@@ -219,6 +219,26 @@
     },
     "number": {
       "max_flow_temperature": { "name": "Temperatura massima flusso" }
+      ,
+      "timer_duration": { "name": "Durata timer" }
+    },
+    "select": {
+      "presence_mode": {
+        "name": "Modalità presenza",
+        "state": {
+          "home": "Casa",
+          "away": "Fuori casa",
+          "auto": "Automatico (Geofencing)"
+        }
+      },
+      "termination_type": {
+        "name": "Tipo terminazione",
+        "state": {
+          "TIMER": "Timer",
+          "MANUAL": "Manuale",
+          "NEXT_TIME_BLOCK": "Prossimo blocco orario"
+        }
+      }
     },
     "button": {
       "boost_all": { "name": "Boost globale" },

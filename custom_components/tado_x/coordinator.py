@@ -11,7 +11,13 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import TadoXApi, TadoXApiError, TadoXAuthError, TadoXRateLimitError
-from .const import DOMAIN, SCAN_INTERVAL_AUTO_ASSIST, SCAN_INTERVAL_FREE_TIER
+from .const import (
+    DEFAULT_TIMER_DURATION_MINUTES,
+    DOMAIN,
+    SCAN_INTERVAL_AUTO_ASSIST,
+    SCAN_INTERVAL_FREE_TIER,
+    TERMINATION_TIMER,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -58,6 +64,14 @@ class TadoXRoom:
     devices: list[TadoXDevice] = field(default_factory=list)
     # Running times data (heating duration today)
     running_time_today_seconds: int = 0
+
+
+@dataclass
+class TadoXRoomControlDefaults:
+    """Default control settings for a room."""
+
+    termination_type: str = TERMINATION_TIMER
+    duration_minutes: int = DEFAULT_TIMER_DURATION_MINUTES
 
 
 @dataclass
@@ -159,11 +173,13 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.api = api
+        self.api._get_room_control_defaults = self.get_room_control_defaults
         self.home_id = home_id
         self.home_name = home_name
         self.api.home_id = home_id
         self._save_api_stats_callback = save_api_stats_callback
         self._scan_interval = scan_interval
+        self.room_control_defaults: dict[int, TadoXRoomControlDefaults] = {}
 
         # Feature toggles for optional API calls
         self.enable_weather = enable_weather
@@ -201,6 +217,29 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
         if self.enable_running_times:
             calls += 1
         return calls
+
+    def get_room_control_defaults(self, room_id: int) -> TadoXRoomControlDefaults:
+        """Return per-room control defaults, creating them if missing."""
+        defaults = self.room_control_defaults.get(room_id)
+        if defaults is None:
+            defaults = TadoXRoomControlDefaults()
+            self.room_control_defaults[room_id] = defaults
+        return defaults
+
+    def set_room_control_defaults(
+        self,
+        room_id: int,
+        *,
+        termination_type: str | None = None,
+        duration_minutes: int | None = None,
+    ) -> None:
+        """Update per-room control defaults."""
+        defaults = self.get_room_control_defaults(room_id)
+
+        if termination_type is not None:
+            defaults.termination_type = termination_type
+        if duration_minutes is not None:
+            defaults.duration_minutes = duration_minutes
 
     async def _async_update_data(self) -> TadoXData:
         """Fetch data from Tado X API."""
@@ -244,15 +283,37 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 weather=weather,
             )
 
-            # Process rooms and devices
+            # Process rooms, devices and Tado manual-control defaults
             rooms_info = rooms_devices_data.get("rooms", [])
             room_devices_map: dict[int, list[dict]] = {}
 
             for room_info in rooms_info:
                 room_id = room_info.get("roomId")
-                if room_id:
-                    room_devices_map[room_id] = room_info.get("devices", [])
+                if not room_id:
+                    continue
 
+                room_devices_map[room_id] = room_info.get("devices", [])
+
+                # Read the Manual Control defaults configured in the Tado app.
+                manual_control_default = (
+                    room_info.get("deviceManualControlTermination") or {}
+                )
+
+                termination_type = manual_control_default.get("type")
+                duration_seconds = manual_control_default.get("durationInSeconds")
+
+                if termination_type is not None:
+                    self.set_room_control_defaults(
+                        room_id,
+                        termination_type=termination_type,
+                    )
+
+                if duration_seconds is not None:
+                    self.set_room_control_defaults(
+                        room_id,
+                        duration_minutes=int(duration_seconds / 60),
+                    )
+ 
             # Process room states
             for room_data in rooms_data:
                 room_id = room_data.get("id")
