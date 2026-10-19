@@ -226,6 +226,9 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         if room.open_window_detected:
             attrs["open_window_detected"] = True
 
+        if room.schedule:
+            attrs["schedule"] = room.schedule
+
         return attrs
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:

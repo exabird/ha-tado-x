@@ -162,6 +162,15 @@
       "heating_time_today": {
         "name": "Heating Time Today"
       },
+      "next_schedule_change": {
+        "name": "Next Schedule Change"
+      },
+      "next_schedule_temperature": {
+        "name": "Next Schedule Temperature"
+      },
+      "next_schedule_power": {
+        "name": "Next Schedule Power"
+      },
       "battery": {
         "name": "Battery",
         "state": {
@@ -293,6 +302,9 @@
       },
       "resume_schedules": {
         "name": "Resume Schedules"
+      },
+      "refresh_schedule": {
+        "name": "Refresh Schedule"
       }
     },
     "select": {

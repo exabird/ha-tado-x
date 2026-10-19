@@ -127,6 +127,27 @@ ROOM_SENSORS: tuple[TadoXRoomSensorEntityDescription, ...] = (
         icon="mdi:clock-time-four",
         value_fn=_format_running_time_hours,
     ),
+    TadoXRoomSensorEntityDescription(
+        key="next_schedule_change",
+        translation_key="next_schedule_change",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:calendar-clock",
+        value_fn=lambda room: room.next_schedule_change,
+    ),
+    TadoXRoomSensorEntityDescription(
+        key="next_schedule_temperature",
+        translation_key="next_schedule_temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        icon="mdi:thermometer-chevron-up",
+        value_fn=lambda room: room.next_schedule_temperature,
+    ),
+    TadoXRoomSensorEntityDescription(
+        key="next_schedule_power",
+        translation_key="next_schedule_power",
+        icon="mdi:power",
+        value_fn=lambda room: room.next_schedule_power,
+    ),
 )
 
 DEVICE_SENSORS: tuple[TadoXDeviceSensorEntityDescription, ...] = (

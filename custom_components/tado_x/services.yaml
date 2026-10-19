@@ -126,3 +126,129 @@ set_climate_timer:
           max: 1440
           step: 1
           unit_of_measurement: "min"
+
+get_schedule:
+  name: Get schedule
+  description: Read the current smart heating schedule for a room. Returns the schedule blocks as a response.
+  target:
+    entity:
+      integration: tado_x
+      domain: climate
+
+set_schedule:
+  name: Set schedule
+  description: Modify the smart heating schedule for a room. Replaces the blocks for the given day type.
+  target:
+    entity:
+      integration: tado_x
+      domain: climate
+  fields:
+    day_type:
+      name: Day type
+      description: Which day(s) this schedule applies to.
+      required: true
+      example: "MONDAY_TO_SUNDAY"
+      selector:
+        select:
+          options:
+            - label: "Every day"
+              value: "MONDAY_TO_SUNDAY"
+            - label: "Weekdays"
+              value: "MONDAY_TO_FRIDAY"
+            - label: "Monday"
+              value: "MONDAY"
+            - label: "Tuesday"
+              value: "TUESDAY"
+            - label: "Wednesday"
+              value: "WEDNESDAY"
+            - label: "Thursday"
+              value: "THURSDAY"
+            - label: "Friday"
+              value: "FRIDAY"
+            - label: "Saturday"
+              value: "SATURDAY"
+            - label: "Sunday"
+              value: "SUNDAY"
+    schedule:
+      name: Schedule blocks
+      description: >-
+        JSON array of schedule blocks. Each block: {"dayType": "MONDAY",
+        "start": "07:00", "end": "09:00", "setting": {"power": "ON",
+        "temperature": {"value": 21.0}}}. "power" is ON or OFF; "temperature"
+        may be null when power is OFF.
+      required: true
+      example: '[{"dayType":"MONDAY","start":"07:00","end":"09:00","setting":{"power":"ON","temperature":{"value":21.0}}}]'
+      selector:
+        text:
+          multiline: true
+
+get_day_report:
+  name: Get day report
+  description: Read historical temperature, humidity and heating data for a room and date. Returns the report and a summary as a response. Today's data works on all tiers; past days require an Auto-Assist (Premium) subscription.
+  target:
+    entity:
+      integration: tado_x
+      domain: climate
+  fields:
+    date:
+      name: Date
+      description: Date to fetch (YYYY-MM-DD). Defaults to today.
+      required: false
+      example: "2026-10-13"
+      selector:
+        text:
+
+get_holiday_mode:
+  name: Get holiday mode
+  description: >-
+    Read the home's holiday mode settings (enabled, start/end dates and room
+    settings). Returns the settings as a response. Requires an Auto-Assist
+    (Premium) subscription.
+  fields:
+    home_id:
+      name: Home
+      description: >-
+        The Tado home to read. Optional — required only when multiple homes are
+        configured.
+      required: false
+      example: "123456"
+      selector:
+        text:
+
+set_holiday_mode:
+  name: Set holiday mode
+  description: >-
+    Enable or disable holiday mode and optionally set its start/end date.
+    Requires an Auto-Assist (Premium) subscription. Dates are ISO-8601
+    date-time strings.
+  fields:
+    enabled:
+      name: Enabled
+      description: Turn holiday mode on (true) or off (false).
+      required: true
+      example: true
+      selector:
+        boolean:
+    start_date:
+      name: Start date
+      description: ISO-8601 start date-time (e.g. 2026-12-20T08:00:00Z). Optional.
+      required: false
+      example: "2026-12-20T08:00:00Z"
+      selector:
+        text:
+    end_date:
+      name: End date
+      description: ISO-8601 end date-time (e.g. 2027-01-05T20:00:00Z). Optional.
+      required: false
+      example: "2027-01-05T20:00:00Z"
+      selector:
+        text:
+    home_id:
+      name: Home
+      description: >-
+        The Tado home to control. Optional — required only when multiple homes
+        are configured.
+      required: false
+      example: "123456"
+      selector:
+        text:

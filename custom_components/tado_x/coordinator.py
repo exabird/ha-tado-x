@@ -55,9 +55,13 @@ class TadoXRoom:
     open_window_detected: bool = False
     next_schedule_change: str | None = None
     next_schedule_temperature: float | None = None
+    next_schedule_power: str | None = None
     devices: list[TadoXDevice] = field(default_factory=list)
     # Running times data (heating duration today)
     running_time_today_seconds: int = 0
+    # Smart schedule blocks (dayType, start, end, setting), populated on demand
+    # by the per-room "Refresh Schedule" button
+    schedule: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -293,10 +297,15 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                 next_change_setting = next_change.get("setting") or {}
                 next_change_temp_obj = next_change_setting.get("temperature") or {}
                 next_change_temp = next_change_temp_obj.get("value")
+                next_change_power = next_change_setting.get("power")
 
                 # Get heating power and connection (use 'or {}' to handle None values)
                 heating_power_data = room_data.get("heatingPower") or {}
                 connection_data = room_data.get("connection") or {}
+
+                # Carry over the on-demand schedule (set by the refresh button
+                # or set_schedule) so it survives this periodic refresh.
+                prev_room = self.data.rooms.get(room_id) if self.data else None
 
                 room = TadoXRoom(
                     room_id=room_id,
@@ -314,6 +323,8 @@ class TadoXDataUpdateCoordinator(DataUpdateCoordinator[TadoXData]):
                     open_window_detected=room_data.get("openWindow") is not None,
                     next_schedule_change=next_change_time,
                     next_schedule_temperature=next_change_temp,
+                    next_schedule_power=next_change_power,
+                    schedule=prev_room.schedule if prev_room else [],
                 )
 
                 # Add devices for this room

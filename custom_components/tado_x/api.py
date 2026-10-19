@@ -758,6 +758,117 @@ class TadoXApi:
         )
         return result if isinstance(result, dict) else {}
 
+    # Schedule endpoints (Tado X / Hops API, rooms)
+    async def get_zone_schedule(self, room_id: int) -> dict[str, Any]:
+        """Get the active smart schedule for a room.
+
+        Returns the Tado X schedule: a dict with the room and a list of
+        day blocks (dayType, start, end, setting).
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/rooms/{room_id}/schedule",
+        )
+        return result if isinstance(result, dict) else {}
+
+    async def set_zone_schedule(
+        self,
+        room_id: int,
+        day_type: str,
+        day_schedule: list[dict[str, Any]],
+    ) -> None:
+        """Set the smart schedule blocks for a room.
+
+        Args:
+            room_id: Tado X room ID.
+            day_type: One of MONDAY_TO_SUNDAY, MONDAY_TO_FRIDAY, SATURDAY, ...
+            day_schedule: List of blocks. Each block is a dict with
+                dayType, start, end, geolocationOverride and setting.
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        await self._request(
+            "POST",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/rooms/{room_id}/schedule",
+            json_data={"dayType": day_type, "daySchedule": day_schedule},
+        )
+
+    # Historic data endpoints (My Tado API, zones)
+    async def get_zone_day_report(self, zone_id: int, date_str: str) -> dict[str, Any]:
+        """Get the historical day report for a zone (temperature, humidity, heating).
+
+        Args:
+            zone_id: Zone ID (for Tado X this equals the room ID).
+            date_str: Date in YYYY-MM-DD format.
+
+        Raises:
+            TadoXApiError: on error, including 403 accessDenied for past days
+                when the account has no Auto-Assist (Premium) subscription.
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_MY_API_URL}/homes/{self._home_id}/zones/{zone_id}/dayReport?date={date_str}",
+        )
+        return result if isinstance(result, dict) else {}
+
+    # Holiday mode endpoints (Hops API, home settings — Auto-Assist skill)
+    async def get_holiday_mode(self) -> dict[str, Any]:
+        """Get the home's holiday mode settings.
+
+        Returns the settings dict (enabled, active, startDate, endDate,
+        roomSettings, hotWaterSettings) or {} when not configured.
+
+        Raises:
+            TadoXApiError: when unavailable (e.g. no Auto-Assist subscription).
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        result = await self._request(
+            "GET",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/holidayMode",
+        )
+        return result if isinstance(result, dict) else {}
+
+    async def set_holiday_mode(
+        self,
+        enabled: bool,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> None:
+        """Enable/disable holiday mode and optionally set its date range.
+
+        Read-modify-write so existing room/hot-water settings are preserved.
+        start_date/end_date are ISO-8601 strings.
+        """
+        if not self._home_id:
+            raise TadoXApiError("Home ID not set")
+
+        try:
+            current = await self.get_holiday_mode()
+        except TadoXApiError:
+            current = {}
+
+        body = dict(current)
+        body["enabled"] = enabled
+        if start_date:
+            body["startDate"] = start_date
+        if end_date:
+            body["endDate"] = end_date
+
+        await self._request(
+            "PATCH",
+            f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/holidayMode",
+            json_data=body,
+        )
+
     # Running Times endpoints (Minder API)
     async def get_running_times(self, from_date: str, to_date: str) -> dict[str, Any]:
         """Get running times data for heating statistics.
@@ -855,3 +966,110 @@ class TadoXApi:
             f"{TADO_HOPS_API_URL}/homes/{self._home_id}/settings/flowTemperatureOptimization",
             json_data={"autoAdaptation": {"enabled": enabled}},
         )
+
+
+def summarize_day_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Reduce a raw dayReport to a compact temperature/humidity/heating summary.
+
+    The dayReport returns two series shapes: ``dataPoints`` (timestamp + value,
+    used for insideTemperature and humidity) and ``dataIntervals`` (from/to +
+    value, used for callForHeat / settings / stripes). Both are flattened here.
+    """
+
+    def _series_values(series: dict[str, Any] | None, value_key: str | None) -> list[float]:
+        out: list[float] = []
+        for point in (series or {}).get("dataPoints") or []:
+            value = point.get("value")
+            if value_key and isinstance(value, dict):
+                value = value.get(value_key)
+            if isinstance(value, (int, float)):
+                out.append(float(value))
+        for interval in (series or {}).get("dataIntervals") or []:
+            value = interval.get("value")
+            if value_key and isinstance(value, dict):
+                value = value.get(value_key)
+            if isinstance(value, (int, float)):
+                out.append(float(value))
+        return out
+
+    def _avg(vals: list[float]) -> float | None:
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    def _interval_hours(interval: dict[str, Any]) -> float:
+        try:
+            start = datetime.fromisoformat(interval["from"].replace("Z", "+00:00"))
+            end = datetime.fromisoformat(interval["to"].replace("Z", "+00:00"))
+            return (end - start).total_seconds() / 3600.0
+        except (KeyError, TypeError, ValueError):
+            return 0.0
+
+    measured = report.get("measuredData") or {}
+
+    temps = _series_values(measured.get("insideTemperature"), "celsius")
+    # dayReport humidity values are 0.0-1.0 fractions despite valueType "percentage"
+    hums_pct = [round(h * 100, 1) for h in _series_values(measured.get("humidity"), None)]
+
+    # Heating time: callForHeat marks actual boiler demand ("HEATING" vs "NONE");
+    # fall back to the scheduled settings (power == "ON") when absent.
+    heating_hours: float | None = None
+    call_for_heat = (report.get("callForHeat") or {}).get("dataIntervals") or []
+    if call_for_heat:
+        heating_hours = round(
+            sum(_interval_hours(iv) for iv in call_for_heat if iv.get("value") != "NONE"),
+            1,
+        )
+    else:
+        settings = (report.get("settings") or {}).get("dataIntervals") or []
+        if settings:
+            heating_hours = round(
+                sum(
+                    _interval_hours(iv)
+                    for iv in settings
+                    if (iv.get("value") or {}).get("power") == "ON"
+                ),
+                1,
+            )
+
+    return {
+        "temperature_avg": _avg(temps),
+        "temperature_min": round(min(temps), 1) if temps else None,
+        "temperature_max": round(max(temps), 1) if temps else None,
+        "humidity_avg": _avg(hums_pct),
+        "heating_hours": heating_hours,
+    }
+
+
+if __name__ == "__main__":
+    # Self-check against the live dayReport shape.
+    _sample = {
+        "measuredData": {
+            "insideTemperature": {
+                "dataPoints": [
+                    {"timestamp": "2026-10-13T00:00:00Z", "value": {"celsius": 19.0}},
+                    {"timestamp": "2026-10-13T00:15:00Z", "value": {"celsius": 21.0}},
+                ]
+            },
+            "humidity": {
+                "dataPoints": [
+                    {"timestamp": "2026-10-13T00:00:00Z", "value": 0.60},
+                    {"timestamp": "2026-10-13T00:15:00Z", "value": 0.728},
+                ]
+            },
+        },
+        "callForHeat": {
+            "dataIntervals": [
+                {"from": "2026-10-13T00:00:00Z", "to": "2026-10-13T01:00:00Z", "value": "HEATING"},
+                {"from": "2026-10-13T01:00:00Z", "to": "2026-10-13T02:00:00Z", "value": "NONE"},
+            ]
+        },
+    }
+    _summary = summarize_day_report(_sample)
+    assert _summary["temperature_avg"] == 20.0, _summary
+    assert _summary["temperature_min"] == 19.0, _summary
+    assert _summary["temperature_max"] == 21.0, _summary
+    assert _summary["humidity_avg"] == 66.4, _summary
+    assert _summary["heating_hours"] == 1.0, _summary
+    # empty report returns all-None
+    assert summarize_day_report({})["temperature_avg"] is None
+    print("summarize_day_report OK:", _summary)
+
