@@ -172,6 +172,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except TadoXAuthError as err:
         _LOGGER.error("Authentication failed: %s", err)
         raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
+    except TadoXApiError as err:
+        raise ConfigEntryNotReady(str(err)) from err
 
     # Create callback to save API stats periodically
     def save_api_stats() -> None:
