@@ -294,6 +294,10 @@ class TadoXApi:
                 if response.status != 200:
                     text = await response.text()
                     _LOGGER.error("Failed to refresh token: %s - %s", response.status, text)
+                    if response.status == 429 or response.status >= 500:
+                        # Tado's auth server is busy or down; the refresh token
+                        # was not rejected, so retry on the next update.
+                        raise TadoXApiError(f"Failed to refresh token: {response.status}")
                     raise TadoXAuthError(f"Failed to refresh token: {response.status}")
 
                 data = await response.json()
@@ -309,8 +313,10 @@ class TadoXApi:
                 _LOGGER.debug("Token refreshed successfully, expires in %s seconds", expires_in)
                 return True
 
+        except asyncio.TimeoutError as err:
+            raise TadoXApiError("Timeout during token refresh") from err
         except aiohttp.ClientError as err:
-            raise TadoXAuthError(f"Network error during token refresh: {err}") from err
+            raise TadoXApiError(f"Network error during token refresh: {err}") from err
 
     async def _ensure_valid_token(self) -> None:
         """Ensure we have a valid access token."""
