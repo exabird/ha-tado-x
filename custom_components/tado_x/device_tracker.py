@@ -4,12 +4,14 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.device_tracker import SourceType, TrackerEntity
+from homeassistant.components.zone import ENTITY_ID_HOME as ZONE_HOME
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .device_helpers import via_device_kwargs
 from .const import DOMAIN
 from .coordinator import TadoXDataUpdateCoordinator, TadoXMobileDevice
 
@@ -88,7 +90,7 @@ class TadoXMobileDeviceTracker(
             manufacturer="Tado",
             model=model_str,
             sw_version=os_version if os_version else None,
-            via_device=(DOMAIN, str(self.coordinator.home_id)),
+            **via_device_kwargs(self, (DOMAIN, str(self.coordinator.home_id))),
         )
 
     @property
@@ -97,19 +99,20 @@ class TadoXMobileDeviceTracker(
         return SourceType.GPS
 
     @property
-    def location_name(self) -> str | None:
-        """Return the location name of the device."""
+    def in_zones(self) -> list[str] | None:
+        """Return the zones the device is in.
+
+        Replaces the location_name override (unsupported from Home Assistant
+        2027.7): home -> zone.home (state "home"), any other known location ->
+        no zone (state "not_home"), not tracking or unknown -> None (state
+        unknown). The raw tado location stays in the "location" attribute.
+        """
         mobile = self._mobile_device
-        if not mobile:
+        if not mobile or not mobile.geofencing_enabled or mobile.location is None:
             return None
-
-        if not mobile.geofencing_enabled:
-            return "not_tracking"
-
-        if mobile.location is None:
-            return "unknown"
-
-        return mobile.location.lower()
+        if mobile.location.lower() == "home":
+            return [ZONE_HOME]
+        return []
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -119,7 +122,15 @@ class TadoXMobileDeviceTracker(
             return {}
 
         metadata = mobile.device_metadata
+        if not mobile.geofencing_enabled:
+            location = "not_tracking"
+        elif mobile.location is None:
+            location = "unknown"
+        else:
+            location = mobile.location.lower()
+
         return {
+            "location": location,
             "geofencing_enabled": mobile.geofencing_enabled,
             "at_home": mobile.at_home,
             "platform": metadata.get("platform"),

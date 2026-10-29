@@ -9,6 +9,8 @@ from typing import Any
 import aiohttp
 import ssl
 
+from homeassistant.util.ssl import get_default_context
+
 from .const import (
     TADO_AUTH_URL,
     TADO_CLIENT_ID,
@@ -195,8 +197,8 @@ class TadoXApi:
         _LOGGER.warning("Starting device authorization flow")
         timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=20)
 
-        # Create SSL context that's more permissive for debugging
-        ssl_context = ssl.create_default_context()
+        # Home Assistant's shared client context (built off the event loop)
+        ssl_context = get_default_context()
 
         # Create a dedicated session for auth to ensure timeout is respected
         connector = aiohttp.TCPConnector(force_close=True, ssl=ssl_context)
@@ -220,7 +222,7 @@ class TadoXApi:
                         _LOGGER.error("Failed to start device auth: %s - %s", response.status, text)
                         raise TadoXAuthError(f"Failed to start device auth: {response.status}")
                     result = await response.json()
-                    _LOGGER.warning("Device auth successful, got user_code: %s", result.get("user_code"))
+                    _LOGGER.debug("Device auth successful")
                     return result
             except asyncio.TimeoutError as err:
                 _LOGGER.error("Timeout during device auth request (30s)")

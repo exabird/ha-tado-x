@@ -19,6 +19,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .device_helpers import via_device_kwargs
 from .const import API_QUOTA_FREE_TIER, API_QUOTA_PREMIUM, DOMAIN
 from .coordinator import (
     TadoXData,
@@ -472,7 +473,7 @@ class TadoXRoomSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEntit
             name=room_name,
             manufacturer="Tado",
             model="Tado X Room",
-            via_device=(DOMAIN, str(self.coordinator.home_id)),
+            **via_device_kwargs(self, (DOMAIN, str(self.coordinator.home_id))),
         )
 
     @property
@@ -540,7 +541,7 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
         }
 
         # Determine via_device - link to room if device has one, otherwise to home
-        via_device_id = (
+        via_identifier = (
             (DOMAIN, f"{self.coordinator.home_id}_{device.room_id}")
             if device.room_id
             else (DOMAIN, str(self.coordinator.home_id))
@@ -573,7 +574,7 @@ class TadoXDeviceSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], SensorEnt
             manufacturer="Tado",
             model=device_type_models.get(device.device_type, device.device_type),
             sw_version=device.firmware_version,
-            via_device=via_device_id,
+            **via_device_kwargs(self, via_identifier),
         )
 
     @property
@@ -629,7 +630,7 @@ class TadoXAirComfortSensor(CoordinatorEntity[TadoXDataUpdateCoordinator], Senso
             name=room_name,
             manufacturer="Tado",
             model="Tado X Room",
-            via_device=(DOMAIN, str(self.coordinator.home_id)),
+            **via_device_kwargs(self, (DOMAIN, str(self.coordinator.home_id))),
         )
 
     @property

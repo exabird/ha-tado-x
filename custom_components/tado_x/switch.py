@@ -11,6 +11,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .device_helpers import via_device_kwargs
 from .const import DOMAIN
 from .coordinator import TadoXDataUpdateCoordinator, TadoXDevice, TadoXRoom
 
@@ -96,7 +97,7 @@ class TadoXChildLockSwitch(CoordinatorEntity[TadoXDataUpdateCoordinator], Switch
             "IB02": "Bridge X",
         }
 
-        via_device_id = (
+        via_identifier = (
             (DOMAIN, f"{self.coordinator.home_id}_{device.room_id}")
             if device.room_id
             else (DOMAIN, str(self.coordinator.home_id))
@@ -124,7 +125,7 @@ class TadoXChildLockSwitch(CoordinatorEntity[TadoXDataUpdateCoordinator], Switch
             manufacturer="Tado",
             model=device_type_models.get(device.device_type, device.device_type),
             sw_version=device.firmware_version,
-            via_device=via_device_id,
+            **via_device_kwargs(self, via_identifier),
         )
 
     @property
@@ -195,7 +196,7 @@ class TadoXOpenWindowSwitch(CoordinatorEntity[TadoXDataUpdateCoordinator], Switc
             name=room_name,
             manufacturer="Tado",
             model="Tado X Room",
-            via_device=(DOMAIN, str(self.coordinator.home_id)),
+            **via_device_kwargs(self, (DOMAIN, str(self.coordinator.home_id))),
         )
 
     @property

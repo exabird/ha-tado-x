@@ -17,6 +17,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .device_helpers import via_device_kwargs
 from .const import (
     DEFAULT_TIMER_DURATION,
     DOMAIN,
@@ -51,12 +52,20 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+_NATIVE_TEMPERATURES = hasattr(ClimateEntity, "native_current_temperature")
+
+
 class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity):
     """Tado X Climate entity for a room."""
 
     _attr_has_entity_name = True
     _attr_name = None
-    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    # HA 2026.11 renames the temperature unit and values to native_*
+    # (the old names stop working in 2027.11).
+    if _NATIVE_TEMPERATURES:
+        _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
+    else:
+        _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.PRESET_MODE
@@ -96,7 +105,7 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
             name=room_name,
             manufacturer="Tado",
             model="Tado X Room",
-            via_device=(DOMAIN, str(self.coordinator.home_id)),
+            **via_device_kwargs(self, (DOMAIN, str(self.coordinator.home_id))),
         )
 
     @property
@@ -108,13 +117,13 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         return room.connection_state == "CONNECTED"
 
     @property
-    def current_temperature(self) -> float | None:
+    def native_current_temperature(self) -> float | None:
         """Return the current temperature."""
         room = self._room
         return room.current_temperature if room else None
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the target temperature."""
         room = self._room
         if not room:
@@ -124,6 +133,10 @@ class TadoXClimate(CoordinatorEntity[TadoXDataUpdateCoordinator], ClimateEntity)
         if room.power == "OFF" and room.manual_control_active:
             return None
         return room.target_temperature
+
+    if not _NATIVE_TEMPERATURES:
+        current_temperature = native_current_temperature
+        target_temperature = native_target_temperature
 
     @property
     def current_humidity(self) -> float | None:
